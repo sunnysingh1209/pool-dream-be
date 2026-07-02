@@ -1,0 +1,42 @@
+version: '3.7'
+networks:
+  pool_dream_network:
+    name: pool_dream_network
+    driver: bridge
+    ipam:
+        driver: default
+        config:
+            - subnet: 172.16.242.0/24
+              gateway: 172.16.242.1
+services:
+  postgres:
+    image: postgres:13
+    container_name: postgres_db_pool
+    networks:
+      pool_dream_network:
+        ipv4_address: 172.16.242.5
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_DB: pool-dream-dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+
+  pg-admin:
+    image: dpage/pgadmin4:8.6
+    container_name: pgadmin_pool
+    networks:
+      pool_dream_network:
+        ipv4_address: 172.16.242.4
+    ports:
+      - '8081:80'
+    environment:
+      PGADMIN_DEFAULT_EMAIL: email@server.com
+      PGADMIN_DEFAULT_PASSWORD: Server@123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+volumes:
+  postgres_data:
