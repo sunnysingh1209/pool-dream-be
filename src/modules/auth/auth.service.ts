@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   InternalServerErrorException,
@@ -52,7 +53,7 @@ export class AuthService {
       createdBy: dto.email,
     });
     const savedUser = await this.userRepository.save(user);
-    await this.assignDefaultRole(savedUser);
+    await this.assignRole(savedUser, dto.role || RoleName.USER);
 
     return this.buildAuthResponse(savedUser);
   }
@@ -131,19 +132,22 @@ export class AuthService {
     };
   }
 
-  private async assignDefaultRole(user: UserIdentityEntity): Promise<void> {
-    const defaultRole = await this.roleRepository.findOne({
-      where: { name: RoleName.USER },
+  private async assignRole(
+    user: UserIdentityEntity,
+    roleName: RoleName,
+  ): Promise<void> {
+    const role = await this.roleRepository.findOne({
+      where: { name: roleName },
     });
-    if (!defaultRole) {
+    if (!role) {
       throw new InternalServerErrorException(
-        `Default role '${RoleName.USER}' is not seeded`,
+        `Role '${roleName}' is not seeded`,
       );
     }
 
     const userRole = this.userRoleRepository.create({
       userId: user.id,
-      roleId: defaultRole.id,
+      roleId: role.id,
       createdBy: user.email,
     });
     await this.userRoleRepository.save(userRole);

@@ -9,6 +9,7 @@ import { SignUpDto } from './dto/sign-up.dto';
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
+
   constructor(private readonly authService: AuthService) {}
 
   @Post('sign-up')
