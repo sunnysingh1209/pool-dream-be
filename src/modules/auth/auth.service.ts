@@ -2,20 +2,18 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
-  InternalServerErrorException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { RoleName } from '../../common/enums/role.enum';
 import { RefreshTokenEntity } from '../../entities/refresh-token.entity';
-import { RoleEntity } from '../../entities/role.entity';
 import { UserIdentityEntity } from '../../entities/user-identity.entity';
-import { UserRoleEntity } from '../../entities/user-role.entity';
 import { PasswordHashService } from '../../infrastructure/common/password.service';
 import { TokenHashService } from '../../infrastructure/common/token-hash.service';
+import { RoleService } from '../role/role.service';
 import { WalletService } from '../wallet/wallet.service';
 import { AuthResponseDto, AuthUserDto } from './dto/auth-response.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -30,16 +28,18 @@ export class AuthService {
     private readonly userRepository: Repository<UserIdentityEntity>,
     @InjectRepository(RefreshTokenEntity)
     private readonly refreshTokenRepository: Repository<RefreshTokenEntity>,
-    @InjectRepository(RoleEntity)
-    private readonly roleRepository: Repository<RoleEntity>,
-    @InjectRepository(UserRoleEntity)
-    private readonly userRoleRepository: Repository<UserRoleEntity>,
+    private readonly roleService: RoleService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly walletService: WalletService,
   ) {}
 
   async signUp(dto: SignUpDto): Promise<AuthResponseDto> {
+    if (dto.role && dto.role !== RoleName.USER) {
+      throw new BadRequestException(
+        'Only the "user" role can be self-assigned during sign-up',
+      );
+    }
 
     const existingUser = await this.userRepository.findOne({
       where: { email: dto.email },
@@ -56,7 +56,7 @@ export class AuthService {
       createdBy: dto.email,
     });
     const savedUser = await this.userRepository.save(user);
-    await this.assignRole(savedUser, dto.role ||RoleName.USER);
+    await this.roleService.assignRole(savedUser.id, RoleName.USER, savedUser.email);
     await this.walletService.createWalletForUser(savedUser.id, savedUser.email);
 
     return this.buildAuthResponse(savedUser);
@@ -120,7 +120,7 @@ export class AuthService {
   private async buildAuthResponse(
     user: UserIdentityEntity,
   ): Promise<AuthResponseDto> {
-    const roles = await this.getRoleNamesForUser(user.id);
+    const roles = await this.roleService.getRoleNamesForUser(user.id);
     const payload: JwtPayload = { sub: user.id, email: user.email, roles };
     const authUser: AuthUserDto = {
       id: user.id,
@@ -134,41 +134,6 @@ export class AuthService {
       accessToken: this.jwtService.sign(payload),
       refreshToken: await this.issueRefreshToken(user),
     };
-  }
-
-  private async assignRole(
-    user: UserIdentityEntity,
-    roleName: RoleName,
-  ): Promise<void> {
-    const role = await this.roleRepository.findOne({
-      where: { name: roleName },
-    });
-    if (!role) {
-      throw new InternalServerErrorException(
-        `Role '${roleName}' is not seeded`,
-      );
-    }
-
-    const userRole = this.userRoleRepository.create({
-      userId: user.id,
-      roleId: role.id,
-      createdBy: user.email,
-    });
-    await this.userRoleRepository.save(userRole);
-  }
-
-  private async getRoleNamesForUser(userId: string): Promise<string[]> {
-    const userRoles = await this.userRoleRepository.find({
-      where: { userId },
-    });
-    if (userRoles.length === 0) {
-      return [];
-    }
-
-    const roles = await this.roleRepository.find({
-      where: { id: In(userRoles.map((userRole) => userRole.roleId)) },
-    });
-    return roles.map((role) => role.name);
   }
 
   private async issueRefreshToken(user: UserIdentityEntity): Promise<string> {

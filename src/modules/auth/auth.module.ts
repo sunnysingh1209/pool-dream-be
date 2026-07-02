@@ -4,9 +4,8 @@ import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { RefreshTokenEntity } from '../../entities/refresh-token.entity';
-import { RoleEntity } from '../../entities/role.entity';
 import { UserIdentityEntity } from '../../entities/user-identity.entity';
-import { UserRoleEntity } from '../../entities/user-role.entity';
+import { RoleModule } from '../role/role.module';
 import { WalletModule } from '../wallet/wallet.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
@@ -15,12 +14,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      UserIdentityEntity,
-      RefreshTokenEntity,
-      RoleEntity,
-      UserRoleEntity,
-    ]),
+    TypeOrmModule.forFeature([UserIdentityEntity, RefreshTokenEntity]),
+    RoleModule,
     WalletModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({

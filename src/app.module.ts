@@ -7,6 +7,7 @@ import { PostgresConfigModule } from './common/configuration/db/config.module';
 import { TypeOrmPostgresConnectionService } from './common/configuration/db/config.service';
 import { AuthModule } from './modules/auth/auth.module';
 import { GameModule } from './modules/game/game.module';
+import { UsersModule } from './modules/users/users.module';
 import { WalletModule } from './modules/wallet/wallet.module';
 
 @Module({
@@ -24,6 +25,7 @@ import { WalletModule } from './modules/wallet/wallet.module';
     AuthModule,
     WalletModule,
     GameModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
