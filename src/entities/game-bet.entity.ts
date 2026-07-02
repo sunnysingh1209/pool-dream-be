@@ -13,4 +13,8 @@ export class GameBetEntity extends EntityBase {
 
     @Column({ name: 'TotalAmount', type: 'integer' })
     totalAmount: number = 0;
+
+    @Index()
+    @Column({ name: 'ResultId', type: 'uuid', nullable: true })
+    resultId?: string;
 }
