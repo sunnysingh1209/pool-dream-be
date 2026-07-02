@@ -6,6 +6,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { PostgresConfigModule } from './common/configuration/db/config.module';
 import { TypeOrmPostgresConnectionService } from './common/configuration/db/config.service';
 import { AuthModule } from './modules/auth/auth.module';
+import { GameModule } from './modules/game/game.module';
+import { WalletModule } from './modules/wallet/wallet.module';
 
 @Module({
   imports: [
@@ -20,6 +22,8 @@ import { AuthModule } from './modules/auth/auth.module';
       inject: [TypeOrmPostgresConnectionService],
     }),
     AuthModule,
+    WalletModule,
+    GameModule,
   ],
   controllers: [AppController],
   providers: [AppService],

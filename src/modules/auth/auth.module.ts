@@ -7,6 +7,7 @@ import { RefreshTokenEntity } from '../../entities/refresh-token.entity';
 import { RoleEntity } from '../../entities/role.entity';
 import { UserIdentityEntity } from '../../entities/user-identity.entity';
 import { UserRoleEntity } from '../../entities/user-role.entity';
+import { WalletModule } from '../wallet/wallet.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { RolesGuard } from './guards/roles.guard';
@@ -20,6 +21,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
       RoleEntity,
       UserRoleEntity,
     ]),
+    WalletModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

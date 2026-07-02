@@ -16,6 +16,7 @@ import { UserIdentityEntity } from '../../entities/user-identity.entity';
 import { UserRoleEntity } from '../../entities/user-role.entity';
 import { PasswordHashService } from '../../infrastructure/common/password.service';
 import { TokenHashService } from '../../infrastructure/common/token-hash.service';
+import { WalletService } from '../wallet/wallet.service';
 import { AuthResponseDto, AuthUserDto } from './dto/auth-response.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SignInDto } from './dto/sign-in.dto';
@@ -35,9 +36,11 @@ export class AuthService {
     private readonly userRoleRepository: Repository<UserRoleEntity>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly walletService: WalletService,
   ) {}
 
   async signUp(dto: SignUpDto): Promise<AuthResponseDto> {
+
     const existingUser = await this.userRepository.findOne({
       where: { email: dto.email },
     });
@@ -53,7 +56,8 @@ export class AuthService {
       createdBy: dto.email,
     });
     const savedUser = await this.userRepository.save(user);
-    await this.assignRole(savedUser, dto.role || RoleName.USER);
+    await this.assignRole(savedUser, dto.role ||RoleName.USER);
+    await this.walletService.createWalletForUser(savedUser.id, savedUser.email);
 
     return this.buildAuthResponse(savedUser);
   }

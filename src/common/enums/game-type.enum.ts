@@ -1,0 +1,16 @@
+export enum GameType {
+    JODI = 'jodi',
+    SINGLE = 'single',
+    PANA = 'pana',
+    SP = 'sp',
+    DP = 'dp',
+    TRIO = 'trio',
+    CYCLE = 'cycle',
+    MOTOR_SP = 'motor_sp',
+    CHART_56 = 'chart_56',
+    CHART_64 = 'chart_64',
+    ABR = 'abr',
+    COMMON_SP = 'common_sp',
+    COMMON_DP = 'common_dp',
+    COLOR_DP = 'color_dp',
+}
