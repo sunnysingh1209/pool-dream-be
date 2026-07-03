@@ -23,5 +23,8 @@ export class UserListItemDto {
   roles: string[] = [];
 
   @ApiProperty()
+  creditBalance: number = 0;
+
+  @ApiProperty()
   createdDate!: Date;
 }

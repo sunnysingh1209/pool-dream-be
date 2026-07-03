@@ -19,8 +19,11 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  listUsers(@Query() pagination: PaginationQueryDto) {
-    return this.usersService.listUsers(pagination);
+  listUsers(
+    @CurrentUser() actor: CurrentUserPayload,
+    @Query() pagination: PaginationQueryDto,
+  ) {
+    return this.usersService.listUsers(pagination, actor.id);
   }
 
   @Post()

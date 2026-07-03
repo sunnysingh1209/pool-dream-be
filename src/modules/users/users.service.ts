@@ -1,6 +1,6 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { UserIdentityEntity } from '../../entities/user-identity.entity';
 import { PasswordHashService } from '../../infrastructure/common/password.service';
@@ -18,20 +18,27 @@ export class UsersService {
     private readonly walletService: WalletService,
   ) {}
 
-  async listUsers(pagination: PaginationQueryDto) {
+  async listUsers(pagination: PaginationQueryDto, excludeUserId: string) {
     const [users, total] = await this.userRepository.findAndCount({
+      where: { id: Not(excludeUserId) },
       order: { createdDate: 'DESC' },
       skip: (pagination.page - 1) * pagination.limit,
       take: pagination.limit,
     });
 
-    const roleMap = await this.roleService.getRoleNamesForUsers(
-      users.map((user) => user.id),
-    );
+    const userIds = users.map((user) => user.id);
+    const [roleMap, balanceMap] = await Promise.all([
+      this.roleService.getRoleNamesForUsers(userIds),
+      this.walletService.getBalances(userIds),
+    ]);
 
     return {
       items: users.map((user) =>
-        this.toListItem(user, roleMap.get(user.id) ?? []),
+        this.toListItem(
+          user,
+          roleMap.get(user.id) ?? [],
+          balanceMap.get(user.id) ?? 0,
+        ),
       ),
       total,
       page: pagination.page,
@@ -61,12 +68,13 @@ export class UsersService {
     await this.roleService.assignRole(savedUser.id, dto.role, actorEmail);
     await this.walletService.createWalletForUser(savedUser.id, actorEmail);
 
-    return this.toListItem(savedUser, [dto.role]);
+    return this.toListItem(savedUser, [dto.role], 0);
   }
 
   private toListItem(
     user: UserIdentityEntity,
     roles: string[],
+    creditBalance: number,
   ): UserListItemDto {
     return {
       id: user.id,
@@ -76,6 +84,7 @@ export class UsersService {
       isActive: user.isActive,
       isLocked: user.isLocked,
       roles,
+      creditBalance,
       createdDate: user.createdDate,
     };
   }

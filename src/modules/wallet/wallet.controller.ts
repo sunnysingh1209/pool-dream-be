@@ -56,21 +56,41 @@ export class WalletController {
     return { userId: dto.userId, balance };
   }
 
+  @Get('transactions')
+  @UseGuards(RolesGuard)
+  @Roles(RoleName.SUPER_ADMIN, RoleName.ADMIN)
+  getAllTransactions(
+    @CurrentUser() actor: CurrentUserPayload,
+    @Query() pagination: PaginationQueryDto,
+  ) {
+    return this.walletService.getTransactionsForActor(actor, pagination);
+  }
+
   @Get(':userId/transactions')
   @UseGuards(RolesGuard)
-  @Roles(RoleName.SUPER_ADMIN)
+  @Roles(RoleName.SUPER_ADMIN, RoleName.ADMIN)
   getUserTransactions(
+    @CurrentUser() actor: CurrentUserPayload,
     @Param('userId', ParseUUIDPipe) userId: string,
     @Query() pagination: PaginationQueryDto,
   ) {
-    return this.walletService.getTransactions(userId, pagination);
+    return this.walletService.getTransactionsForActor(actor, pagination, userId);
+  }
+
+  @Get()
+  @UseGuards(RolesGuard)
+  @Roles(RoleName.SUPER_ADMIN, RoleName.ADMIN)
+  getAllWallets(@CurrentUser() actor: CurrentUserPayload) {
+    return this.walletService.getWalletForActor(actor);
   }
 
   @Get(':userId')
   @UseGuards(RolesGuard)
-  @Roles(RoleName.SUPER_ADMIN)
-  async getUserWallet(@Param('userId', ParseUUIDPipe) userId: string) {
-    const balance = await this.walletService.getBalance(userId);
-    return { userId, balance };
+  @Roles(RoleName.SUPER_ADMIN, RoleName.ADMIN)
+  getUserWallet(
+    @CurrentUser() actor: CurrentUserPayload,
+    @Param('userId', ParseUUIDPipe) userId: string,
+  ) {
+    return this.walletService.getWalletForActor(actor, userId);
   }
 }
