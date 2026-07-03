@@ -5,13 +5,11 @@ import {
   ArrayMinSize,
   IsArray,
   IsEnum,
-  IsIn,
   IsInt,
   Max,
   Min,
   ValidateNested,
 } from 'class-validator';
-import { ALLOWED_COIN_AMOUNTS } from '../../../common/constants/coin-amount.constant';
 import { GameType } from '../../../common/enums/game-type.enum';
 
 export class BetSelectionDto {
@@ -21,10 +19,11 @@ export class BetSelectionDto {
   @Max(100)
   number: number = 0;
 
-  @ApiProperty({ enum: ALLOWED_COIN_AMOUNTS, example: 25 })
+  @ApiProperty({ minimum: 1, maximum: 1_000_000, example: 25 })
   @IsInt()
-  @IsIn(ALLOWED_COIN_AMOUNTS)
-  amount: number = ALLOWED_COIN_AMOUNTS[0];
+  @Min(1)
+  @Max(1_000_000)
+  amount: number = 1;
 }
 
 export class PlaceBetDto {
