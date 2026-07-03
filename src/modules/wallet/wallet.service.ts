@@ -136,7 +136,12 @@ export class WalletService {
       skip: (pagination.page - 1) * pagination.limit,
       take: pagination.limit,
     });
-    return { items, total, page: pagination.page, limit: pagination.limit };
+    return {
+      items: await this.enrichTransactionsWithUser(items),
+      total,
+      page: pagination.page,
+      limit: pagination.limit,
+    };
   }
 
   async getWalletForActor(actor: CurrentUserPayload, userId?: string) {
@@ -183,7 +188,30 @@ export class WalletService {
       skip: (pagination.page - 1) * pagination.limit,
       take: pagination.limit,
     });
-    return { items, total, page: pagination.page, limit: pagination.limit };
+    return {
+      items: await this.enrichTransactionsWithUser(items),
+      total,
+      page: pagination.page,
+      limit: pagination.limit,
+    };
+  }
+
+  private async enrichTransactionsWithUser(items: CreditTransactionEntity[]) {
+    if (items.length === 0) {
+      return [];
+    }
+
+    const userIds = [...new Set(items.map((item) => item.userId))];
+    const users = await this.userRepository.find({
+      where: { id: In(userIds) },
+    });
+    const userById = new Map(users.map((user) => [user.id, user]));
+
+    return items.map((item) => ({
+      ...item,
+      userName: userById.get(item.userId)?.name ?? '',
+      userEmail: userById.get(item.userId)?.email ?? '',
+    }));
   }
 
   /**
