@@ -15,6 +15,12 @@ export class BetResponseDto {
   @ApiProperty()
   userId: string = '';
 
+  @ApiProperty({ required: false })
+  userName?: string;
+
+  @ApiProperty({ required: false })
+  userEmail?: string;
+
   @ApiProperty()
   gameType: string = '';
 

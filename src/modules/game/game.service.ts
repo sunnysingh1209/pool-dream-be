@@ -5,6 +5,7 @@ import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { RoleName } from '../../common/enums/role.enum';
 import { GameBetNumberEntity } from '../../entities/game-bet-number.entity';
 import { GameBetEntity } from '../../entities/game-bet.entity';
+import { UserIdentityEntity } from '../../entities/user-identity.entity';
 import { CurrentUserPayload } from '../auth/decorators/current-user.decorator';
 import { WalletService } from '../wallet/wallet.service';
 import { BetResponseDto } from './dto/bet-response.dto';
@@ -17,6 +18,8 @@ export class GameService {
     private readonly gameBetRepository: Repository<GameBetEntity>,
     @InjectRepository(GameBetNumberEntity)
     private readonly gameBetNumberRepository: Repository<GameBetNumberEntity>,
+    @InjectRepository(UserIdentityEntity)
+    private readonly userRepository: Repository<UserIdentityEntity>,
     private readonly walletService: WalletService,
     private readonly dataSource: DataSource,
   ) {}
@@ -93,10 +96,18 @@ export class GameService {
       selectionsByBet.set(selection.betId, list);
     }
 
+    const userIds = [...new Set(bets.map((bet) => bet.userId))];
+    const users = userIds.length
+      ? await this.userRepository.find({ where: { id: In(userIds) } })
+      : [];
+    const userById = new Map(users.map((user) => [user.id, user]));
+
     return {
-      items: bets.map((bet) =>
-        this.toBetResponse(bet, selectionsByBet.get(bet.id) ?? []),
-      ),
+      items: bets.map((bet) => ({
+        ...this.toBetResponse(bet, selectionsByBet.get(bet.id) ?? []),
+        userName: userById.get(bet.userId)?.name ?? '',
+        userEmail: userById.get(bet.userId)?.email ?? '',
+      })),
       total,
       page: pagination.page,
       limit: pagination.limit,

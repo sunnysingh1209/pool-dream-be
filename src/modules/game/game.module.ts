@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { GameBetNumberEntity } from '../../entities/game-bet-number.entity';
 import { GameBetEntity } from '../../entities/game-bet.entity';
 import { GameResultEntity } from '../../entities/game-result.entity';
+import { UserIdentityEntity } from '../../entities/user-identity.entity';
 import { WalletModule } from '../wallet/wallet.module';
 import { GameResultController } from './game-result.controller';
 import { GameResultService } from './game-result.service';
@@ -15,6 +16,7 @@ import { GameService } from './game.service';
       GameBetEntity,
       GameBetNumberEntity,
       GameResultEntity,
+      UserIdentityEntity,
     ]),
     WalletModule,
   ],
