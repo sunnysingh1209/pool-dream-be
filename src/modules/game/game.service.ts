@@ -5,6 +5,7 @@ import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { RoleName } from '../../common/enums/role.enum';
 import { GameBetNumberEntity } from '../../entities/game-bet-number.entity';
 import { GameBetEntity } from '../../entities/game-bet.entity';
+import { GameResultEntity } from '../../entities/game-result.entity';
 import { UserIdentityEntity } from '../../entities/user-identity.entity';
 import { CurrentUserPayload } from '../auth/decorators/current-user.decorator';
 import { WalletService } from '../wallet/wallet.service';
@@ -20,6 +21,8 @@ export class GameService {
     private readonly gameBetNumberRepository: Repository<GameBetNumberEntity>,
     @InjectRepository(UserIdentityEntity)
     private readonly userRepository: Repository<UserIdentityEntity>,
+    @InjectRepository(GameResultEntity)
+    private readonly gameResultRepository: Repository<GameResultEntity>,
     private readonly walletService: WalletService,
     private readonly dataSource: DataSource,
   ) {}
@@ -102,11 +105,16 @@ export class GameService {
       : [];
     const userById = new Map(users.map((user) => [user.id, user]));
 
+    const winningNumberByResult = await this.getWinningNumberByResult(bets);
+
     return {
       items: bets.map((bet) => ({
         ...this.toBetResponse(bet, selectionsByBet.get(bet.id) ?? []),
         userName: userById.get(bet.userId)?.name ?? '',
         userEmail: userById.get(bet.userId)?.email ?? '',
+        winningNumber: bet.resultId
+          ? winningNumberByResult.get(bet.resultId)
+          : undefined,
       })),
       total,
       page: pagination.page,
@@ -127,7 +135,28 @@ export class GameService {
     const selections = await this.gameBetNumberRepository.find({
       where: { betId: bet.id },
     });
-    return this.toBetResponse(bet, selections);
+
+    let winningNumber: number | undefined;
+    if (bet.resultId) {
+      const result = await this.gameResultRepository.findOne({
+        where: { id: bet.resultId },
+      });
+      winningNumber = result?.winningNumber;
+    }
+
+    return { ...this.toBetResponse(bet, selections), winningNumber };
+  }
+
+  private async getWinningNumberByResult(
+    bets: GameBetEntity[],
+  ): Promise<Map<string, number>> {
+    const resultIds = [
+      ...new Set(bets.map((bet) => bet.resultId).filter((id): id is string => !!id)),
+    ];
+    const results = resultIds.length
+      ? await this.gameResultRepository.find({ where: { id: In(resultIds) } })
+      : [];
+    return new Map(results.map((result) => [result.id, result.winningNumber]));
   }
 
   private toBetResponse(
@@ -139,6 +168,7 @@ export class GameService {
       userId: bet.userId,
       gameType: bet.gameType,
       totalAmount: bet.totalAmount,
+      resultId: bet.resultId,
       selections: selections.map((s) => ({
         number: s.number,
         amount: s.amount,

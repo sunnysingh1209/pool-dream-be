@@ -36,6 +36,9 @@ export class GameResultResponseDto {
   @ApiProperty()
   settledBetCount: number = 0;
 
+  @ApiProperty()
+  winnerCount: number = 0;
+
   @ApiProperty({ type: [ResultWinnerDto] })
   winners: ResultWinnerDto[] = [];
 }
@@ -61,4 +64,7 @@ export class GameResultSummaryDto {
 
   @ApiProperty()
   winnerCount: number = 0;
+
+  @ApiProperty({ type: [ResultWinnerDto] })
+  winners: ResultWinnerDto[] = [];
 }

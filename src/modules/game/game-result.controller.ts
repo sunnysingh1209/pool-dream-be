@@ -13,12 +13,13 @@ import { GameResultService } from './game-result.service';
 @ApiTags('Game Results')
 @ApiBearerAuth('access-token')
 @Controller('game/results')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(RoleName.SUPER_ADMIN)
+@UseGuards(JwtAuthGuard)
 export class GameResultController {
   constructor(private readonly gameResultService: GameResultService) {}
 
   @Post()
+  @UseGuards(RolesGuard)
+  @Roles(RoleName.SUPER_ADMIN)
   declareResult(
     @CurrentUser() admin: CurrentUserPayload,
     @Body() dto: DeclareResultDto,

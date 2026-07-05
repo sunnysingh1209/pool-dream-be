@@ -56,7 +56,10 @@ export class GameResultService {
       }
 
       const winners = await this.getWinners(result, manager);
-      return this.toResponse(result, winners);
+      result.winners = winners;
+      await resultRepo.save(result);
+
+      return this.toResponse(result);
     });
   }
 
@@ -67,23 +70,6 @@ export class GameResultService {
       take: pagination.limit,
     });
 
-    const resultIds = results.map((r) => r.id);
-    const counts: Array<{ resultId: string; winnerCount: number }> =
-      resultIds.length
-        ? await this.dataSource.query(
-            `SELECT b."ResultId" AS "resultId", COUNT(DISTINCT b."UserId")::int AS "winnerCount"
-             FROM "GameBetTbl" b
-             JOIN "GameBetNumberTbl" n ON n."BetId" = b."Id"
-             JOIN "GameResultTbl" gr ON gr."Id" = b."ResultId"
-             WHERE b."ResultId" = ANY($1) AND n."Number" = gr."WinningNumber"
-             GROUP BY b."ResultId"`,
-            [resultIds],
-          )
-        : [];
-    const winnerCountByResult = new Map(
-      counts.map((c) => [c.resultId, c.winnerCount]),
-    );
-
     const items: GameResultSummaryDto[] = results.map((result) => ({
       id: result.id,
       gameType: result.gameType,
@@ -91,7 +77,8 @@ export class GameResultService {
       declaredBy: result.createdBy,
       declaredAt: result.createdDate,
       settledBetCount: result.settledBetCount,
-      winnerCount: winnerCountByResult.get(result.id) ?? 0,
+      winnerCount: result.winners.length,
+      winners: result.winners,
     }));
 
     return { items, total, page: pagination.page, limit: pagination.limit };
@@ -103,8 +90,7 @@ export class GameResultService {
       throw new NotFoundException('Result not found');
     }
 
-    const winners = await this.getWinners(result);
-    return this.toResponse(result, winners);
+    return this.toResponse(result);
   }
 
   private async getWinners(
@@ -126,10 +112,7 @@ export class GameResultService {
     );
   }
 
-  private toResponse(
-    result: GameResultEntity,
-    winners: ResultWinnerDto[],
-  ): GameResultResponseDto {
+  private toResponse(result: GameResultEntity): GameResultResponseDto {
     return {
       id: result.id,
       gameType: result.gameType,
@@ -137,7 +120,8 @@ export class GameResultService {
       declaredBy: result.createdBy,
       declaredAt: result.createdDate,
       settledBetCount: result.settledBetCount,
-      winners,
+      winnerCount: result.winners.length,
+      winners: result.winners,
     };
   }
 }

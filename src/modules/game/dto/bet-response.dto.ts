@@ -27,6 +27,12 @@ export class BetResponseDto {
   @ApiProperty()
   totalAmount: number = 0;
 
+  @ApiProperty({ required: false, nullable: true })
+  resultId?: string;
+
+  @ApiProperty({ required: false, nullable: true })
+  winningNumber?: number;
+
   @ApiProperty({ type: [BetSelectionResponseDto] })
   selections: BetSelectionResponseDto[] = [];
 

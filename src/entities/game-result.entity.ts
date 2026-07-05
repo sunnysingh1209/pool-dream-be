@@ -1,6 +1,14 @@
 import { Column, Entity, Index } from "typeorm";
 import { EntityBase } from "../infrastructure/base/entity-base.entity";
 
+export interface GameResultWinnerRecord {
+    userId: string;
+    name: string;
+    email: string;
+    winningAmount: number;
+    betIds: string[];
+}
+
 @Entity({ name: 'GameResultTbl' })
 export class GameResultEntity extends EntityBase {
 
@@ -13,4 +21,7 @@ export class GameResultEntity extends EntityBase {
 
     @Column({ name: 'SettledBetCount', type: 'integer', default: 0 })
     settledBetCount: number = 0;
+
+    @Column({ name: 'Winners', type: 'jsonb', default: () => "'[]'" })
+    winners: GameResultWinnerRecord[] = [];
 }
