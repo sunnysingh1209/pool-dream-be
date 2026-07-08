@@ -2,15 +2,18 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
+import { GameSubType } from '../../common/enums/game-sub-type.enum';
 import { RoleName } from '../../common/enums/role.enum';
 import { GameBetNumberEntity } from '../../entities/game-bet-number.entity';
 import { GameBetEntity } from '../../entities/game-bet.entity';
 import { GameResultEntity } from '../../entities/game-result.entity';
+import { GameSubTypeEntity } from '../../entities/game-sub-type.entity';
 import { UserIdentityEntity } from '../../entities/user-identity.entity';
 import { CurrentUserPayload } from '../auth/decorators/current-user.decorator';
 import { WalletService } from '../wallet/wallet.service';
 import { BetResponseDto } from './dto/bet-response.dto';
 import { PlaceBetDto } from './dto/place-bet.dto';
+import { GameSubTypeService } from './game-sub-type.service';
 
 @Injectable()
 export class GameService {
@@ -23,6 +26,9 @@ export class GameService {
     private readonly userRepository: Repository<UserIdentityEntity>,
     @InjectRepository(GameResultEntity)
     private readonly gameResultRepository: Repository<GameResultEntity>,
+    @InjectRepository(GameSubTypeEntity)
+    private readonly gameSubTypeRepository: Repository<GameSubTypeEntity>,
+    private readonly gameSubTypeService: GameSubTypeService,
     private readonly walletService: WalletService,
     private readonly dataSource: DataSource,
   ) {}
@@ -32,6 +38,8 @@ export class GameService {
     userEmail: string,
     dto: PlaceBetDto,
   ): Promise<BetResponseDto> {
+    await this.gameSubTypeService.assertBettingOpen(dto.gameSubType);
+
     const totalAmount = dto.selections.reduce((sum, s) => sum + s.amount, 0);
 
     return this.dataSource.transaction(async (manager) => {
@@ -42,6 +50,7 @@ export class GameService {
         betRepo.create({
           userId,
           gameType: dto.gameType,
+          gameSubType: dto.gameSubType,
           totalAmount,
           createdBy: userEmail,
         }),
@@ -106,12 +115,14 @@ export class GameService {
     const userById = new Map(users.map((user) => [user.id, user]));
 
     const winningNumberByResult = await this.getWinningNumberByResult(bets);
+    const subTypeNameById = await this.getSubTypeNameById(bets);
 
     return {
       items: bets.map((bet) => ({
         ...this.toBetResponse(bet, selectionsByBet.get(bet.id) ?? []),
         userName: userById.get(bet.userId)?.name ?? '',
         userEmail: userById.get(bet.userId)?.email ?? '',
+        gameSubTypeName: subTypeNameById.get(bet.gameSubType) ?? '',
         winningNumber: bet.resultId
           ? winningNumberByResult.get(bet.resultId)
           : undefined,
@@ -144,7 +155,15 @@ export class GameService {
       winningNumber = result?.winningNumber;
     }
 
-    return { ...this.toBetResponse(bet, selections), winningNumber };
+    const subType = await this.gameSubTypeRepository.findOne({
+      where: { name: bet.gameSubType as GameSubType },
+    });
+
+    return {
+      ...this.toBetResponse(bet, selections),
+      winningNumber,
+      gameSubTypeName: subType?.displayName ?? '',
+    };
   }
 
   private async getWinningNumberByResult(
@@ -159,6 +178,16 @@ export class GameService {
     return new Map(results.map((result) => [result.id, result.winningNumber]));
   }
 
+  private async getSubTypeNameById(
+    bets: GameBetEntity[],
+  ): Promise<Map<string, string>> {
+    const subTypeNames = [...new Set(bets.map((bet) => bet.gameSubType))] as GameSubType[];
+    const subTypes = subTypeNames.length
+      ? await this.gameSubTypeRepository.find({ where: { name: In(subTypeNames) } })
+      : [];
+    return new Map(subTypes.map((subType) => [subType.name, subType.displayName]));
+  }
+
   private toBetResponse(
     bet: GameBetEntity,
     selections: GameBetNumberEntity[],
@@ -167,6 +196,7 @@ export class GameService {
       id: bet.id,
       userId: bet.userId,
       gameType: bet.gameType,
+      gameSubType: bet.gameSubType,
       totalAmount: bet.totalAmount,
       resultId: bet.resultId,
       selections: selections.map((s) => ({

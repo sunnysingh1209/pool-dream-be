@@ -10,6 +10,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+import { GameSubType } from '../../../common/enums/game-sub-type.enum';
 import { GameType } from '../../../common/enums/game-type.enum';
 
 export class BetSelectionDto {
@@ -30,6 +31,10 @@ export class PlaceBetDto {
   @ApiProperty({ enum: GameType })
   @IsEnum(GameType)
   gameType!: GameType;
+
+  @ApiProperty({ enum: GameSubType })
+  @IsEnum(GameSubType)
+  gameSubType!: GameSubType;
 
   @ApiProperty({ type: [BetSelectionDto] })
   @IsArray()

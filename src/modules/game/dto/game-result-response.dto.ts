@@ -25,6 +25,12 @@ export class GameResultResponseDto {
   gameType: string = '';
 
   @ApiProperty()
+  gameSubType: string = '';
+
+  @ApiProperty({ required: false })
+  gameSubTypeName?: string;
+
+  @ApiProperty()
   winningNumber: number = 0;
 
   @ApiProperty()
@@ -49,6 +55,12 @@ export class GameResultSummaryDto {
 
   @ApiProperty()
   gameType: string = '';
+
+  @ApiProperty()
+  gameSubType: string = '';
+
+  @ApiProperty({ required: false })
+  gameSubTypeName?: string;
 
   @ApiProperty()
   winningNumber: number = 0;

@@ -25,6 +25,12 @@ export class BetResponseDto {
   gameType: string = '';
 
   @ApiProperty()
+  gameSubType: string = '';
+
+  @ApiProperty({ required: false })
+  gameSubTypeName?: string;
+
+  @ApiProperty()
   totalAmount: number = 0;
 
   @ApiProperty({ required: false, nullable: true })

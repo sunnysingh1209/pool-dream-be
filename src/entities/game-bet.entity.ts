@@ -11,6 +11,10 @@ export class GameBetEntity extends EntityBase {
     @Column({ name: 'GameType', length: 30, type: 'character varying' })
     gameType: string = "";
 
+    @Index()
+    @Column({ name: 'GameSubType', length: 30, type: 'character varying' })
+    gameSubType: string = "";
+
     @Column({ name: 'TotalAmount', type: 'integer' })
     totalAmount: number = 0;
 

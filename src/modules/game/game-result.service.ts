@@ -1,9 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, IsNull, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, IsNull, Repository } from 'typeorm';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
+import { GameSubType } from '../../common/enums/game-sub-type.enum';
 import { GameBetEntity } from '../../entities/game-bet.entity';
 import { GameResultEntity } from '../../entities/game-result.entity';
+import { GameSubTypeEntity } from '../../entities/game-sub-type.entity';
 import { CurrentUserPayload } from '../auth/decorators/current-user.decorator';
 import { DeclareResultDto } from './dto/declare-result.dto';
 import {
@@ -19,6 +21,8 @@ export class GameResultService {
     private readonly gameResultRepository: Repository<GameResultEntity>,
     @InjectRepository(GameBetEntity)
     private readonly gameBetRepository: Repository<GameBetEntity>,
+    @InjectRepository(GameSubTypeEntity)
+    private readonly gameSubTypeRepository: Repository<GameSubTypeEntity>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -31,13 +35,18 @@ export class GameResultService {
       const resultRepo = manager.getRepository(GameResultEntity);
 
       const pendingBets = await betRepo.find({
-        where: { gameType: dto.gameType, resultId: IsNull() },
+        where: {
+          gameType: dto.gameType,
+          gameSubType: dto.gameSubType,
+          resultId: IsNull(),
+        },
         select: ['id'],
       });
 
       const result = await resultRepo.save(
         resultRepo.create({
           gameType: dto.gameType,
+          gameSubType: dto.gameSubType,
           winningNumber: dto.winningNumber,
           settledBetCount: pendingBets.length,
           createdBy: admin.email,
@@ -70,9 +79,13 @@ export class GameResultService {
       take: pagination.limit,
     });
 
+    const subTypeNameByCode = await this.getSubTypeNameByCode(results);
+
     const items: GameResultSummaryDto[] = results.map((result) => ({
       id: result.id,
       gameType: result.gameType,
+      gameSubType: result.gameSubType,
+      gameSubTypeName: subTypeNameByCode.get(result.gameSubType) ?? '',
       winningNumber: result.winningNumber,
       declaredBy: result.createdBy,
       declaredAt: result.createdDate,
@@ -91,6 +104,18 @@ export class GameResultService {
     }
 
     return this.toResponse(result);
+  }
+
+  private async getSubTypeNameByCode(
+    results: GameResultEntity[],
+  ): Promise<Map<string, string>> {
+    const subTypeNames = [
+      ...new Set(results.map((result) => result.gameSubType)),
+    ] as GameSubType[];
+    const subTypes = subTypeNames.length
+      ? await this.gameSubTypeRepository.find({ where: { name: In(subTypeNames) } })
+      : [];
+    return new Map(subTypes.map((subType) => [subType.name, subType.displayName]));
   }
 
   private async getWinners(
@@ -112,10 +137,17 @@ export class GameResultService {
     );
   }
 
-  private toResponse(result: GameResultEntity): GameResultResponseDto {
+  private async toResponse(
+    result: GameResultEntity,
+  ): Promise<GameResultResponseDto> {
+    const subType = await this.gameSubTypeRepository.findOne({
+      where: { name: result.gameSubType as GameSubType },
+    });
     return {
       id: result.id,
       gameType: result.gameType,
+      gameSubType: result.gameSubType,
+      gameSubTypeName: subType?.displayName ?? '',
       winningNumber: result.winningNumber,
       declaredBy: result.createdBy,
       declaredAt: result.createdDate,
