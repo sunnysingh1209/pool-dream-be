@@ -26,12 +26,20 @@ export class GameSubTypeService {
     return subType;
   }
 
+  async getSubTypeById(id: string): Promise<GameSubTypeEntity> {
+    const subType = await this.gameSubTypeRepository.findOne({ where: { id } });
+    if (!subType) {
+      throw new NotFoundException('Game sub type not found');
+    }
+    return subType;
+  }
+
   async updateSubType(
-    name: GameSubType,
+    id: string,
     dto: UpdateGameSubTypeDto,
     updatedBy: string,
   ): Promise<GameSubTypeEntity> {
-    const subType = await this.getSubType(name);
+    const subType = await this.getSubTypeById(id);
     if (dto.displayName !== undefined) {
       subType.displayName = dto.displayName;
     }

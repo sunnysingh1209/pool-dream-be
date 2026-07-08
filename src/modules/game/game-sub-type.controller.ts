@@ -3,12 +3,11 @@ import {
   Controller,
   Get,
   Param,
-  ParseEnumPipe,
+  ParseUUIDPipe,
   Patch,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { GameSubType } from '../../common/enums/game-sub-type.enum';
 import { RoleName } from '../../common/enums/role.enum';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { CurrentUserPayload } from '../auth/decorators/current-user.decorator';
@@ -30,18 +29,18 @@ export class GameSubTypeController {
     return this.gameSubTypeService.listSubTypes();
   }
 
-  @Get(':name')
-  getSubType(@Param('name', new ParseEnumPipe(GameSubType)) name: GameSubType) {
-    return this.gameSubTypeService.getSubType(name);
+  @Get(':id')
+  getSubType(@Param('id', ParseUUIDPipe) id: string) {
+    return this.gameSubTypeService.getSubTypeById(id);
   }
 
-  @Patch(':name')
+  @Patch(':id')
   @Roles(RoleName.SUPER_ADMIN)
   updateSubType(
-    @Param('name', new ParseEnumPipe(GameSubType)) name: GameSubType,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateGameSubTypeDto,
     @CurrentUser() admin: CurrentUserPayload,
   ) {
-    return this.gameSubTypeService.updateSubType(name, dto, admin.email);
+    return this.gameSubTypeService.updateSubType(id, dto, admin.email);
   }
 }
