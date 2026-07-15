@@ -12,9 +12,14 @@ export class DeclareResultDto {
   @IsEnum(GameSubType)
   gameSubType!: GameSubType;
 
-  @ApiProperty({ minimum: 1, maximum: 100, example: 42 })
+  @ApiProperty({
+    minimum: 0,
+    maximum: 100,
+    example: 42,
+    description: '0 represents the "00" pair',
+  })
   @IsInt()
-  @Min(1)
+  @Min(0)
   @Max(100)
   winningNumber: number = 0;
 }

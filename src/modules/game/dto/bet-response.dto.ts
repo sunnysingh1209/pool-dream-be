@@ -6,6 +6,9 @@ export class BetSelectionResponseDto {
 
   @ApiProperty()
   amount: number = 0;
+
+  @ApiProperty({ description: 'True if this row came from an Ander/Bahar (Haruf) pick' })
+  isHaruf: boolean = false;
 }
 
 export class BetResponseDto {

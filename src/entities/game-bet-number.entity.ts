@@ -13,4 +13,7 @@ export class GameBetNumberEntity extends EntityBase {
 
     @Column({ name: 'Amount', type: 'integer' })
     amount: number = 0;
+
+    @Column({ name: 'IsHaruf', type: 'boolean', default: false })
+    isHaruf: boolean = false;
 }

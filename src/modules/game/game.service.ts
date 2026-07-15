@@ -1,9 +1,18 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { GameSubType } from '../../common/enums/game-sub-type.enum';
 import { RoleName } from '../../common/enums/role.enum';
+import {
+  ANDER_BAHAR_GROUP_SIZE,
+  getAnderBaharNumbers,
+} from '../../common/utils/ander-bahar.util';
 import { GameBetNumberEntity } from '../../entities/game-bet-number.entity';
 import { GameBetEntity } from '../../entities/game-bet.entity';
 import { GameResultEntity } from '../../entities/game-result.entity';
@@ -38,9 +47,15 @@ export class GameService {
     userEmail: string,
     dto: PlaceBetDto,
   ): Promise<BetResponseDto> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user || !user.isActive || user.isLocked) {
+      throw new UnauthorizedException('Account is inactive or locked');
+    }
+
     await this.gameSubTypeService.assertBettingOpen(dto.gameSubType);
 
-    const totalAmount = dto.selections.reduce((sum, s) => sum + s.amount, 0);
+    const resolvedSelections = this.resolveSelections(dto);
+    const totalAmount = resolvedSelections.reduce((sum, s) => sum + s.amount, 0);
 
     return this.dataSource.transaction(async (manager) => {
       const betRepo = manager.getRepository(GameBetEntity);
@@ -65,11 +80,12 @@ export class GameService {
       );
 
       const selections = await numberRepo.save(
-        dto.selections.map((s) =>
+        resolvedSelections.map((s) =>
           numberRepo.create({
             betId: bet.id,
             number: s.number,
             amount: s.amount,
+            isHaruf: s.isHaruf,
             createdBy: userEmail,
           }),
         ),
@@ -77,6 +93,65 @@ export class GameService {
 
       return this.toBetResponse(bet, selections);
     });
+  }
+
+  /**
+   * Ander/Bahar (Haruf) picks are a shorthand for a whole digit-group of 10
+   * Jodi numbers. The amount given per pick is the TOTAL stake for that
+   * group, split evenly across its 10 numbers (so it must be a multiple of
+   * 10). That per-number amount is then paid out at the same
+   * JODI_PAYOUT_MULTIPLIER as a direct pick, which reproduces the same
+   * result as the old "full amount x 9.5" scheme, e.g. amount=10 -> 1 per
+   * number -> 1 x 95 = 95 on a hit, same as 10 x 9.5 previously.
+   * Direct and Haruf picks are merged (summed) only within their own
+   * category — a number picked both directly and via an Ander/Bahar group is
+   * stored as two rows, tagged isHaruf=false/true respectively.
+   */
+  private resolveSelections(
+    dto: PlaceBetDto,
+  ): { number: number; amount: number; isHaruf: boolean }[] {
+    const directAmountByNumber = new Map<number, number>();
+    for (const selection of dto.selections ?? []) {
+      directAmountByNumber.set(
+        selection.number,
+        (directAmountByNumber.get(selection.number) ?? 0) + selection.amount,
+      );
+    }
+
+    const harufAmountByNumber = new Map<number, number>();
+    for (const selection of dto.anderBaharSelections ?? []) {
+      if (selection.amount % ANDER_BAHAR_GROUP_SIZE !== 0) {
+        throw new BadRequestException(
+          `anderBaharSelections amount must be a multiple of ${ANDER_BAHAR_GROUP_SIZE}`,
+        );
+      }
+      const perNumberAmount = selection.amount / ANDER_BAHAR_GROUP_SIZE;
+      for (const number of getAnderBaharNumbers(selection.digit, selection.position)) {
+        harufAmountByNumber.set(
+          number,
+          (harufAmountByNumber.get(number) ?? 0) + perNumberAmount,
+        );
+      }
+    }
+
+    if (directAmountByNumber.size === 0 && harufAmountByNumber.size === 0) {
+      throw new BadRequestException(
+        'At least one of selections or anderBaharSelections must be provided',
+      );
+    }
+
+    return [
+      ...[...directAmountByNumber.entries()].map(([number, amount]) => ({
+        number,
+        amount,
+        isHaruf: false,
+      })),
+      ...[...harufAmountByNumber.entries()].map(([number, amount]) => ({
+        number,
+        amount,
+        isHaruf: true,
+      })),
+    ];
   }
 
   async listBets(
@@ -202,6 +277,7 @@ export class GameService {
       selections: selections.map((s) => ({
         number: s.number,
         amount: s.amount,
+        isHaruf: s.isHaruf,
       })),
       createdDate: bet.createdDate,
     };

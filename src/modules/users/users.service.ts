@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Not, Repository } from 'typeorm';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
@@ -69,6 +69,29 @@ export class UsersService {
     await this.walletService.createWalletForUser(savedUser.id, actorEmail);
 
     return this.toListItem(savedUser, [dto.role], 0);
+  }
+
+  async setLockStatus(
+    actorEmail: string,
+    userId: string,
+    isLocked: boolean,
+  ): Promise<UserListItemDto> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    user.isLocked = isLocked;
+    user.isActive = !isLocked;
+    user.updatedBy = actorEmail;
+    const savedUser = await this.userRepository.save(user);
+
+    const [roles, balance] = await Promise.all([
+      this.roleService.getRoleNamesForUser(savedUser.id),
+      this.walletService.getBalance(savedUser.id),
+    ]);
+
+    return this.toListItem(savedUser, roles, balance);
   }
 
   private toListItem(

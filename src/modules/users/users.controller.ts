@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { RoleName } from '../../common/enums/role.enum';
@@ -32,5 +42,23 @@ export class UsersController {
     @Body() dto: CreateUserDto,
   ) {
     return this.usersService.createUser(actor.email, dto);
+  }
+
+  @Patch(':id/lock')
+  @Roles(RoleName.SUPER_ADMIN)
+  lockUser(
+    @CurrentUser() actor: CurrentUserPayload,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.usersService.setLockStatus(actor.email, id, true);
+  }
+
+  @Patch(':id/unlock')
+  @Roles(RoleName.SUPER_ADMIN)
+  unlockUser(
+    @CurrentUser() actor: CurrentUserPayload,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.usersService.setLockStatus(actor.email, id, false);
   }
 }

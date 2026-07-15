@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, IsNull, Repository } from 'typeorm';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
+import { JODI_PAYOUT_MULTIPLIER } from '../../common/constants/payout-multiplier.constant';
 import { GameSubType } from '../../common/enums/game-sub-type.enum';
 import { GameBetEntity } from '../../entities/game-bet.entity';
 import { GameResultEntity } from '../../entities/game-result.entity';
@@ -125,7 +126,7 @@ export class GameResultService {
     const runner = manager ?? this.dataSource.manager;
     return runner.query(
       `SELECT u."Id" AS "userId", u."Name" AS "name", u."Email" AS "email",
-              SUM(n."Amount")::int AS "winningAmount",
+              SUM(n."Amount" * $3::numeric)::int AS "winningAmount",
               ARRAY_AGG(DISTINCT b."Id") AS "betIds"
        FROM "GameBetNumberTbl" n
        JOIN "GameBetTbl" b ON b."Id" = n."BetId"
@@ -133,7 +134,7 @@ export class GameResultService {
        WHERE b."ResultId" = $1 AND n."Number" = $2
        GROUP BY u."Id", u."Name", u."Email"
        ORDER BY "winningAmount" DESC`,
-      [result.id, result.winningNumber],
+      [result.id, result.winningNumber, JODI_PAYOUT_MULTIPLIER],
     );
   }
 
