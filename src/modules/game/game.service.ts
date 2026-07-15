@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
+import { AnderBaharPosition } from '../../common/enums/ander-bahar-position.enum';
 import { GameSubType } from '../../common/enums/game-sub-type.enum';
 import { RoleName } from '../../common/enums/role.enum';
 import {
@@ -86,6 +87,8 @@ export class GameService {
             number: s.number,
             amount: s.amount,
             isHaruf: s.isHaruf,
+            anderBaharDigit: s.anderBaharDigit,
+            anderBaharPosition: s.anderBaharPosition,
             createdBy: userEmail,
           }),
         ),
@@ -103,13 +106,20 @@ export class GameService {
    * JODI_PAYOUT_MULTIPLIER as a direct pick, which reproduces the same
    * result as the old "full amount x 9.5" scheme, e.g. amount=10 -> 1 per
    * number -> 1 x 95 = 95 on a hit, same as 10 x 9.5 previously.
-   * Direct and Haruf picks are merged (summed) only within their own
-   * category — a number picked both directly and via an Ander/Bahar group is
-   * stored as two rows, tagged isHaruf=false/true respectively.
+   * Direct picks are merged (summed) across duplicate numbers. Haruf picks
+   * are merged only within the same (digit, position) group — a number
+   * covered by two different groups (e.g. Ander-2 and Bahar-3 both including
+   * 23) is stored as two separate rows, each tagged with its own
+   * anderBaharDigit/anderBaharPosition, so the response can show which
+   * group each row came from.
    */
-  private resolveSelections(
-    dto: PlaceBetDto,
-  ): { number: number; amount: number; isHaruf: boolean }[] {
+  private resolveSelections(dto: PlaceBetDto): {
+    number: number;
+    amount: number;
+    isHaruf: boolean;
+    anderBaharDigit?: number;
+    anderBaharPosition?: AnderBaharPosition;
+  }[] {
     const directAmountByNumber = new Map<number, number>();
     for (const selection of dto.selections ?? []) {
       directAmountByNumber.set(
@@ -118,27 +128,43 @@ export class GameService {
       );
     }
 
-    const harufAmountByNumber = new Map<number, number>();
+    const groupAmountByKey = new Map<
+      string,
+      { digit: number; position: AnderBaharPosition; amount: number }
+    >();
     for (const selection of dto.anderBaharSelections ?? []) {
       if (selection.amount % ANDER_BAHAR_GROUP_SIZE !== 0) {
         throw new BadRequestException(
           `anderBaharSelections amount must be a multiple of ${ANDER_BAHAR_GROUP_SIZE}`,
         );
       }
-      const perNumberAmount = selection.amount / ANDER_BAHAR_GROUP_SIZE;
-      for (const number of getAnderBaharNumbers(selection.digit, selection.position)) {
-        harufAmountByNumber.set(
-          number,
-          (harufAmountByNumber.get(number) ?? 0) + perNumberAmount,
-        );
-      }
+      const key = `${selection.position}:${selection.digit}`;
+      const existing = groupAmountByKey.get(key);
+      groupAmountByKey.set(key, {
+        digit: selection.digit,
+        position: selection.position,
+        amount: (existing?.amount ?? 0) + selection.amount,
+      });
     }
 
-    if (directAmountByNumber.size === 0 && harufAmountByNumber.size === 0) {
+    if (directAmountByNumber.size === 0 && groupAmountByKey.size === 0) {
       throw new BadRequestException(
         'At least one of selections or anderBaharSelections must be provided',
       );
     }
+
+    const harufRows = [...groupAmountByKey.values()].flatMap(
+      ({ digit, position, amount }) => {
+        const perNumberAmount = amount / ANDER_BAHAR_GROUP_SIZE;
+        return getAnderBaharNumbers(digit, position).map((number) => ({
+          number,
+          amount: perNumberAmount,
+          isHaruf: true,
+          anderBaharDigit: digit,
+          anderBaharPosition: position,
+        }));
+      },
+    );
 
     return [
       ...[...directAmountByNumber.entries()].map(([number, amount]) => ({
@@ -146,11 +172,7 @@ export class GameService {
         amount,
         isHaruf: false,
       })),
-      ...[...harufAmountByNumber.entries()].map(([number, amount]) => ({
-        number,
-        amount,
-        isHaruf: true,
-      })),
+      ...harufRows,
     ];
   }
 
@@ -278,6 +300,8 @@ export class GameService {
         number: s.number,
         amount: s.amount,
         isHaruf: s.isHaruf,
+        anderBaharDigit: s.anderBaharDigit,
+        anderBaharPosition: s.anderBaharPosition,
       })),
       createdDate: bet.createdDate,
     };

@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { AnderBaharPosition } from '../../../common/enums/ander-bahar-position.enum';
 
 export class BetSelectionResponseDto {
   @ApiProperty()
@@ -9,6 +10,12 @@ export class BetSelectionResponseDto {
 
   @ApiProperty({ description: 'True if this row came from an Ander/Bahar (Haruf) pick' })
   isHaruf: boolean = false;
+
+  @ApiProperty({ required: false, nullable: true, minimum: 0, maximum: 9 })
+  anderBaharDigit?: number;
+
+  @ApiProperty({ required: false, nullable: true, enum: AnderBaharPosition })
+  anderBaharPosition?: AnderBaharPosition;
 }
 
 export class BetResponseDto {

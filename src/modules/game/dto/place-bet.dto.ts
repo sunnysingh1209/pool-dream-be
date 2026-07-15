@@ -16,9 +16,9 @@ import { GameSubType } from '../../../common/enums/game-sub-type.enum';
 import { GameType } from '../../../common/enums/game-type.enum';
 
 export class BetSelectionDto {
-  @ApiProperty({ minimum: 1, maximum: 100, example: 10 })
+  @ApiProperty({ minimum: 0, maximum: 100, example: 10, description: '0 represents the "00" pair' })
   @IsInt()
-  @Min(1)
+  @Min(0)
   @Max(100)
   number: number = 0;
 
