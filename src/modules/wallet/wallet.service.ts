@@ -92,12 +92,47 @@ export class WalletService {
     });
   }
 
+  /**
+   * Generic wallet credit used for winnings and approved refunds. Must run
+   * inside the caller's own transaction (declareResult / refund approval)
+   * so the credit and the state change that authorized it commit together.
+   */
+  async credit(
+    userId: string,
+    amount: number,
+    type: CreditTransactionType,
+    referenceId: string | undefined,
+    performedBy: string,
+    manager: EntityManager,
+  ): Promise<number> {
+    await this.createWalletForUser(userId, performedBy, manager);
+
+    const walletRepo = manager.getRepository(WalletEntity);
+    await walletRepo.increment({ userId }, 'balance', amount);
+    const wallet = await walletRepo.findOneOrFail({ where: { userId } });
+
+    const txRepo = manager.getRepository(CreditTransactionEntity);
+    await txRepo.save(
+      txRepo.create({
+        userId,
+        type,
+        amount,
+        balanceAfter: wallet.balance,
+        referenceId,
+        createdBy: performedBy,
+      }),
+    );
+
+    return wallet.balance;
+  }
+
   async debit(
     userId: string,
     amount: number,
     referenceId: string,
     performedBy: string,
     manager: EntityManager,
+    type: CreditTransactionType = CreditTransactionType.BET_DEBIT,
   ): Promise<number> {
     // TypeORM's postgres driver returns raw UPDATE results as a
     // [rows, rowCount] tuple, not the rows array directly.
@@ -118,7 +153,7 @@ export class WalletService {
     await txRepo.save(
       txRepo.create({
         userId,
-        type: CreditTransactionType.BET_DEBIT,
+        type,
         amount,
         balanceAfter: newBalance,
         referenceId,

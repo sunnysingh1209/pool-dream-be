@@ -50,10 +50,17 @@ export class TransformInterceptor<T>
         } else {
           resultData = data;
         }
-        //if(data?.status) response.status(data.status)
-        if (data?.status) response.status(data.status);
+        // Only treat data.status as an HTTP status-code override when it
+        // actually is one — domain objects (e.g. RedeemRequestEntity) can
+        // have their own unrelated "status" field (e.g. "pending"), which
+        // Express's response.status() would otherwise reject/misinterpret.
+        const statusOverride =
+          typeof data?.status === 'number' && Number.isInteger(data.status)
+            ? data.status
+            : undefined;
+        if (statusOverride) response.status(statusOverride);
         const objRes = {
-          statusCode: data.status || status,
+          statusCode: statusOverride || status,
           // status: true,
           errors: [],
           message: data.message ? data.message : 'Success',

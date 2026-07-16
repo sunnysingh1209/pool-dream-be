@@ -3,11 +3,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, IsNull, Repository } from 'typeorm';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { JODI_PAYOUT_MULTIPLIER } from '../../common/constants/payout-multiplier.constant';
+import { CreditTransactionType } from '../../common/enums/credit-transaction-type.enum';
 import { GameSubType } from '../../common/enums/game-sub-type.enum';
 import { GameBetEntity } from '../../entities/game-bet.entity';
 import { GameResultEntity } from '../../entities/game-result.entity';
 import { GameSubTypeEntity } from '../../entities/game-sub-type.entity';
 import { CurrentUserPayload } from '../auth/decorators/current-user.decorator';
+import { WalletService } from '../wallet/wallet.service';
 import { DeclareResultDto } from './dto/declare-result.dto';
 import {
   GameResultResponseDto,
@@ -24,6 +26,7 @@ export class GameResultService {
     private readonly gameBetRepository: Repository<GameBetEntity>,
     @InjectRepository(GameSubTypeEntity)
     private readonly gameSubTypeRepository: Repository<GameSubTypeEntity>,
+    private readonly walletService: WalletService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -68,6 +71,20 @@ export class GameResultService {
       const winners = await this.getWinners(result, manager);
       result.winners = winners;
       await resultRepo.save(result);
+
+      for (const winner of winners) {
+        if (winner.winningAmount <= 0) {
+          continue;
+        }
+        await this.walletService.credit(
+          winner.userId,
+          winner.winningAmount,
+          CreditTransactionType.CREDIT,
+          result.id,
+          admin.email,
+          manager,
+        );
+      }
 
       return this.toResponse(result);
     });
