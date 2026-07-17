@@ -21,6 +21,14 @@ export class GameSubTypeResponseDto {
   isActive: boolean = true;
 }
 
+export class GameSubTypeResultBoardDto {
+  @ApiProperty({ nullable: true, example: 10, description: "Previous day's declared result, null if none was declared" })
+  yest_res: number | null = null;
+
+  @ApiProperty({ nullable: true, example: 30, description: "Today's declared result, null if not yet declared" })
+  today: number | null = null;
+}
+
 export class UpdateGameSubTypeDto {
   @ApiProperty({ required: false })
   @IsOptional()

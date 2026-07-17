@@ -29,6 +29,11 @@ export class GameSubTypeController {
     return this.gameSubTypeService.listSubTypes();
   }
 
+  @Get('results')
+  getResultsBoard() {
+    return this.gameSubTypeService.getResultsBoard();
+  }
+
   @Get(':id')
   getSubType(@Param('id', ParseUUIDPipe) id: string) {
     return this.gameSubTypeService.getSubTypeById(id);
