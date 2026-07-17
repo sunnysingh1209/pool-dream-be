@@ -2,5 +2,5 @@ export enum CreditTransactionType {
     TOPUP = 'topup',
     BET_DEBIT = 'bet_debit',
     CREDIT = 'credit',
-    REDEEM = 'redeem',
+    WITHDRAW = 'withdraw',
 }

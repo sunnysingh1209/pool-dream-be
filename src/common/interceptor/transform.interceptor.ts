@@ -51,7 +51,7 @@ export class TransformInterceptor<T>
           resultData = data;
         }
         // Only treat data.status as an HTTP status-code override when it
-        // actually is one — domain objects (e.g. RedeemRequestEntity) can
+        // actually is one — domain objects (e.g. WithdrawRequestEntity) can
         // have their own unrelated "status" field (e.g. "pending"), which
         // Express's response.status() would otherwise reject/misinterpret.
         const statusOverride =
