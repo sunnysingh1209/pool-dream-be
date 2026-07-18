@@ -22,4 +22,7 @@ export class UserIdentityEntity extends EntityBase {
 
     @Column({ name: 'IsLocked', type: 'boolean', default: false })
     isLocked: boolean = false;
+
+    @Column({ name: 'LastLoginAt', type: 'timestamptz', nullable: true })
+    lastLoginAt?: Date;
 }

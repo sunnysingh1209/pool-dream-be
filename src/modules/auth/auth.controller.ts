@@ -1,10 +1,14 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
+import { CurrentUser } from './decorators/current-user.decorator';
+import type { CurrentUserPayload } from './decorators/current-user.decorator';
 import { AuthResponseDto } from './dto/auth-response.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SignInDto } from './dto/sign-in.dto';
 import { SignUpDto } from './dto/sign-up.dto';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -34,5 +38,16 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   logout(@Body() dto: RefreshTokenDto): Promise<{ message: string }> {
     return this.authService.logout(dto);
+  }
+
+  @Post('change-password')
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  changePassword(
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() dto: ChangePasswordDto,
+  ): Promise<{ message: string }> {
+    return this.authService.changePassword(user.id, dto);
   }
 }

@@ -26,4 +26,7 @@ export class AuthResponseDto {
 
   @ApiProperty()
   refreshToken: string = "";
+
+  @ApiProperty({ description: 'True if this is the user\'s first ever login' })
+  isFirstLogin: boolean = false;
 }

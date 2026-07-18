@@ -16,6 +16,7 @@ import { TokenHashService } from '../../infrastructure/common/token-hash.service
 import { RoleService } from '../role/role.service';
 import { WalletService } from '../wallet/wallet.service';
 import { AuthResponseDto, AuthUserDto } from './dto/auth-response.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SignInDto } from './dto/sign-in.dto';
 import { SignUpDto } from './dto/sign-up.dto';
@@ -76,7 +77,12 @@ export class AuthService {
       throw new UnauthorizedException('Account is inactive or locked');
     }
 
-    return this.buildAuthResponse(user);
+    const isFirstLogin = !user.lastLoginAt;
+    user.lastLoginAt = new Date();
+    user.updatedBy = user.email;
+    await this.userRepository.save(user);
+
+    return this.buildAuthResponse(user, isFirstLogin);
   }
 
   async refreshToken(dto: RefreshTokenDto): Promise<AuthResponseDto> {
@@ -105,6 +111,25 @@ export class AuthService {
     return this.buildAuthResponse(user);
   }
 
+  async changePassword(
+    userId: string,
+    dto: ChangePasswordDto,
+  ): Promise<{ message: string }> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new UnauthorizedException('Invalid session');
+    }
+    if (!PasswordHashService.verifyPassword(user.passwordHash, dto.oldPassword)) {
+      throw new UnauthorizedException('Old password is incorrect');
+    }
+
+    user.passwordHash = PasswordHashService.hashPassword(dto.newPassword);
+    user.updatedBy = user.email;
+    await this.userRepository.save(user);
+
+    return { message: 'Password updated successfully' };
+  }
+
   async logout(dto: RefreshTokenDto): Promise<{ message: string }> {
     const tokenHash = TokenHashService.hash(dto.refreshToken);
     const storedToken = await this.refreshTokenRepository.findOne({
@@ -119,6 +144,7 @@ export class AuthService {
 
   private async buildAuthResponse(
     user: UserIdentityEntity,
+    isFirstLogin = false,
   ): Promise<AuthResponseDto> {
     const roles = await this.roleService.getRoleNamesForUser(user.id);
     const payload: JwtPayload = { sub: user.id, email: user.email, roles };
@@ -133,6 +159,7 @@ export class AuthService {
       user: authUser,
       accessToken: this.jwtService.sign(payload),
       refreshToken: await this.issueRefreshToken(user),
+      isFirstLogin,
     };
   }
 

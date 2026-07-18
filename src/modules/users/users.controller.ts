@@ -18,6 +18,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { CreateUserDto } from './dto/create-user.dto';
+import { ResetUserPasswordDto } from './dto/reset-password.dto';
 import { UsersService } from './users.service';
 
 @ApiTags('Users')
@@ -60,5 +61,15 @@ export class UsersController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.usersService.setLockStatus(actor.email, id, false);
+  }
+
+  @Patch(':id/password')
+  @Roles(RoleName.SUPER_ADMIN)
+  resetPassword(
+    @CurrentUser() actor: CurrentUserPayload,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ResetUserPasswordDto,
+  ) {
+    return this.usersService.resetPassword(actor.email, id, dto);
   }
 }

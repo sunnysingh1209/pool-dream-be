@@ -7,6 +7,7 @@ import { PasswordHashService } from '../../infrastructure/common/password.servic
 import { RoleService } from '../role/role.service';
 import { WalletService } from '../wallet/wallet.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { ResetUserPasswordDto } from './dto/reset-password.dto';
 import { UserListItemDto } from './dto/user-list-item.dto';
 
 @Injectable()
@@ -92,6 +93,23 @@ export class UsersService {
     ]);
 
     return this.toListItem(savedUser, roles, balance);
+  }
+
+  async resetPassword(
+    actorEmail: string,
+    userId: string,
+    dto: ResetUserPasswordDto,
+  ): Promise<{ message: string }> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    user.passwordHash = PasswordHashService.hashPassword(dto.newPassword);
+    user.updatedBy = actorEmail;
+    await this.userRepository.save(user);
+
+    return { message: 'Password reset successfully' };
   }
 
   private toListItem(
