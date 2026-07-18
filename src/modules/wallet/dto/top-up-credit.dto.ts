@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
@@ -25,4 +26,14 @@ export class TopUpCreditDto {
   @IsString()
   @MaxLength(255)
   remarks?: string;
+
+  @ApiProperty({
+    required: false,
+    example: 100.5,
+    description: 'External credit reference number, updated alongside the top-up if sent',
+  })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  creditReference?: number;
 }

@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Not, Repository } from 'typeorm';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { UserIdentityEntity } from '../../entities/user-identity.entity';
+import { WalletEntity } from '../../entities/wallet.entity';
 import { PasswordHashService } from '../../infrastructure/common/password.service';
 import { RoleService } from '../role/role.service';
 import { WalletService } from '../wallet/wallet.service';
@@ -28,18 +29,14 @@ export class UsersService {
     });
 
     const userIds = users.map((user) => user.id);
-    const [roleMap, balanceMap] = await Promise.all([
+    const [roleMap, walletMap] = await Promise.all([
       this.roleService.getRoleNamesForUsers(userIds),
-      this.walletService.getBalances(userIds),
+      this.walletService.getWallets(userIds),
     ]);
 
     return {
       items: users.map((user) =>
-        this.toListItem(
-          user,
-          roleMap.get(user.id) ?? [],
-          balanceMap.get(user.id) ?? 0,
-        ),
+        this.toListItem(user, roleMap.get(user.id) ?? [], walletMap.get(user.id)),
       ),
       total,
       page: pagination.page,
@@ -67,9 +64,9 @@ export class UsersService {
     });
     const savedUser = await this.userRepository.save(user);
     await this.roleService.assignRole(savedUser.id, dto.role, actorEmail);
-    await this.walletService.createWalletForUser(savedUser.id, actorEmail);
+    const wallet = await this.walletService.createWalletForUser(savedUser.id, actorEmail);
 
-    return this.toListItem(savedUser, [dto.role], 0);
+    return this.toListItem(savedUser, [dto.role], wallet);
   }
 
   async setLockStatus(
@@ -87,12 +84,12 @@ export class UsersService {
     user.updatedBy = actorEmail;
     const savedUser = await this.userRepository.save(user);
 
-    const [roles, balance] = await Promise.all([
+    const [roles, wallet] = await Promise.all([
       this.roleService.getRoleNamesForUser(savedUser.id),
-      this.walletService.getBalance(savedUser.id),
+      this.walletService.getWallet(savedUser.id),
     ]);
 
-    return this.toListItem(savedUser, roles, balance);
+    return this.toListItem(savedUser, roles, wallet ?? undefined);
   }
 
   async resetPassword(
@@ -115,7 +112,7 @@ export class UsersService {
   private toListItem(
     user: UserIdentityEntity,
     roles: string[],
-    creditBalance: number,
+    wallet?: WalletEntity,
   ): UserListItemDto {
     return {
       id: user.id,
@@ -125,7 +122,9 @@ export class UsersService {
       isActive: user.isActive,
       isLocked: user.isLocked,
       roles,
-      creditBalance,
+      creditBalance: wallet?.balance ?? 0,
+      creditReference: wallet?.creditReference ?? null,
+      lastCreditRefUpdate: wallet?.lastCreditRefUpdate ?? null,
       createdDate: user.createdDate,
     };
   }

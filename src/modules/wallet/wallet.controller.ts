@@ -17,6 +17,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { TopUpCreditDto } from './dto/top-up-credit.dto';
+import { UpdateCreditReferenceDto } from './dto/update-credit-reference.dto';
 import { WalletService } from './wallet.service';
 
 @ApiTags('Wallet')
@@ -47,13 +48,39 @@ export class WalletController {
     @CurrentUser() admin: CurrentUserPayload,
     @Body() dto: TopUpCreditDto,
   ) {
-    const balance = await this.walletService.topUp(
+    const wallet = await this.walletService.topUp(
       dto.userId,
       dto.amount,
       admin.email,
       dto.remarks,
+      dto.creditReference,
     );
-    return { userId: dto.userId, balance };
+    return {
+      userId: dto.userId,
+      balance: wallet.balance,
+      creditReference: wallet.creditReference,
+      lastCreditRefUpdate: wallet.lastCreditRefUpdate,
+    };
+  }
+
+  @Post('credit-reference')
+  @UseGuards(RolesGuard)
+  @Roles(RoleName.SUPER_ADMIN)
+  async updateCreditReference(
+    @CurrentUser() admin: CurrentUserPayload,
+    @Body() dto: UpdateCreditReferenceDto,
+  ) {
+    const wallet = await this.walletService.updateCreditReference(
+      dto.userId,
+      dto.creditReference,
+      admin.email,
+    );
+    return {
+      userId: dto.userId,
+      balance: wallet.balance,
+      creditReference: wallet.creditReference,
+      lastCreditRefUpdate: wallet.lastCreditRefUpdate,
+    };
   }
 
   @Get('transactions')

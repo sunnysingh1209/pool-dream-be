@@ -25,6 +25,12 @@ export class UserListItemDto {
   @ApiProperty()
   creditBalance: number = 0;
 
+  @ApiProperty({ required: false, nullable: true, example: 100.5 })
+  creditReference?: number | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  lastCreditRefUpdate?: Date | null;
+
   @ApiProperty()
   createdDate!: Date;
 }

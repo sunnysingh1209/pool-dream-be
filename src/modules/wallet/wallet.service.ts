@@ -63,17 +63,47 @@ export class WalletService {
     return result;
   }
 
+  async getWallet(userId: string): Promise<WalletEntity | null> {
+    return this.walletRepository.findOne({ where: { userId } });
+  }
+
+  async getWallets(userIds: string[]): Promise<Map<string, WalletEntity>> {
+    const result = new Map<string, WalletEntity>();
+    if (userIds.length === 0) {
+      return result;
+    }
+
+    const wallets = await this.walletRepository.find({
+      where: { userId: In(userIds) },
+    });
+    for (const wallet of wallets) {
+      result.set(wallet.userId, wallet);
+    }
+    return result;
+  }
+
   async topUp(
     userId: string,
     amount: number,
     performedBy: string,
     remarks?: string,
-  ): Promise<number> {
+    creditReference?: number,
+  ): Promise<WalletEntity> {
     return this.dataSource.transaction(async (manager) => {
       await this.createWalletForUser(userId, performedBy, manager);
 
       const walletRepo = manager.getRepository(WalletEntity);
       await walletRepo.increment({ userId }, 'balance', amount);
+      if (creditReference !== undefined) {
+        await walletRepo.update(
+          { userId },
+          {
+            creditReference,
+            lastCreditRefUpdate: new Date(),
+            updatedBy: performedBy,
+          },
+        );
+      }
       const wallet = await walletRepo.findOneOrFail({ where: { userId } });
 
       const txRepo = manager.getRepository(CreditTransactionEntity);
@@ -88,8 +118,21 @@ export class WalletService {
         }),
       );
 
-      return wallet.balance;
+      return wallet;
     });
+  }
+
+  async updateCreditReference(
+    userId: string,
+    creditReference: number,
+    performedBy: string,
+  ): Promise<WalletEntity> {
+    await this.createWalletForUser(userId, performedBy);
+    await this.walletRepository.update(
+      { userId },
+      { creditReference, lastCreditRefUpdate: new Date(), updatedBy: performedBy },
+    );
+    return this.walletRepository.findOneOrFail({ where: { userId } });
   }
 
   /**

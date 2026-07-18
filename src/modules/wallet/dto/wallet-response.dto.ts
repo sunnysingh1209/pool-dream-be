@@ -6,6 +6,12 @@ export class WalletResponseDto {
 
   @ApiProperty()
   balance: number = 0;
+
+  @ApiProperty({ required: false, nullable: true, example: 100.5 })
+  creditReference?: number | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  lastCreditRefUpdate?: Date | null;
 }
 
 export class CreditTransactionResponseDto {
