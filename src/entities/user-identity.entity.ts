@@ -4,6 +4,7 @@ import { EntityBase } from "../infrastructure/base/entity-base.entity";
 @Entity({ name: 'UserIdentityTbl' })
 export class UserIdentityEntity extends EntityBase {
 
+    @Index({ unique: true })
     @Column({ name: 'Name', length: 150, type: 'character varying' })
     name: string = "";
 

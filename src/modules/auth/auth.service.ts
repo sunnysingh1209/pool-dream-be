@@ -43,10 +43,14 @@ export class AuthService {
     }
 
     const existingUser = await this.userRepository.findOne({
-      where: { email: dto.email },
+      where: [{ email: dto.email }, { name: dto.name }],
     });
     if (existingUser) {
-      throw new ConflictException('Email is already registered');
+      throw new ConflictException(
+        existingUser.email === dto.email
+          ? 'Email is already registered'
+          : 'Name is already taken',
+      );
     }
 
     const user = this.userRepository.create({
@@ -65,7 +69,7 @@ export class AuthService {
 
   async signIn(dto: SignInDto): Promise<AuthResponseDto> {
     const user = await this.userRepository.findOne({
-      where: { email: dto.email },
+      where: [{ email: dto.email }, { name: dto.email }],
     });
     if (!user) {
       throw new UnauthorizedException('Invalid email or password');
