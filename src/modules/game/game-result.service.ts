@@ -1,7 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, IsNull, Repository } from 'typeorm';
-import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { JODI_PAYOUT_MULTIPLIER } from '../../common/constants/payout-multiplier.constant';
 import { CreditTransactionType } from '../../common/enums/credit-transaction-type.enum';
 import { GameSubType } from '../../common/enums/game-sub-type.enum';
@@ -17,6 +16,7 @@ import {
   GameResultSummaryDto,
   ResultWinnerDto,
 } from './dto/game-result-response.dto';
+import { ListResultsQueryDto } from './dto/list-results-query.dto';
 import { UpdateResultDto } from './dto/update-result.dto';
 
 const RESULT_EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -175,12 +175,39 @@ export class GameResultService {
     }
   }
 
-  async listResults(pagination: PaginationQueryDto) {
-    const [results, total] = await this.gameResultRepository.findAndCount({
-      order: { createdDate: 'DESC' },
-      skip: (pagination.page - 1) * pagination.limit,
-      take: pagination.limit,
-    });
+  async listResults(query: ListResultsQueryDto) {
+    const { page, limit, search, gameSubType, fromDate, toDate } = query;
+
+    const qb = this.gameResultRepository.createQueryBuilder('result');
+
+    if (gameSubType) {
+      qb.andWhere('result."GameSubType" = :gameSubType', { gameSubType });
+    }
+    if (search) {
+      qb.andWhere(
+        `EXISTS (
+           SELECT 1 FROM jsonb_array_elements(result."Winners") AS winner
+           WHERE winner->>'name' ILIKE :search OR winner->>'email' ILIKE :search
+         )`,
+        { search: `%${search}%` },
+      );
+    }
+    if (fromDate) {
+      qb.andWhere('result."CreatedDate" >= :fromDate', {
+        fromDate: new Date(`${fromDate}T00:00:00.000Z`),
+      });
+    }
+    if (toDate) {
+      qb.andWhere('result."CreatedDate" <= :toDate', {
+        toDate: new Date(`${toDate}T23:59:59.999Z`),
+      });
+    }
+
+    const [results, total] = await qb
+      .orderBy('result."CreatedDate"', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
 
     const subTypeNameByCode = await this.getSubTypeNameByCode(results);
 
@@ -197,7 +224,7 @@ export class GameResultService {
       winners: result.winners,
     }));
 
-    return { items, total, page: pagination.page, limit: pagination.limit };
+    return { items, total, page, limit };
   }
 
   async getResultById(id: string): Promise<GameResultResponseDto> {
