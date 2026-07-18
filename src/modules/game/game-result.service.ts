@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, IsNull, Repository } from 'typeorm';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { JODI_PAYOUT_MULTIPLIER } from '../../common/constants/payout-multiplier.constant';
 import { CreditTransactionType } from '../../common/enums/credit-transaction-type.enum';
 import { GameSubType } from '../../common/enums/game-sub-type.enum';
+import { CreditTransactionEntity } from '../../entities/credit-transaction.entity';
 import { GameBetEntity } from '../../entities/game-bet.entity';
 import { GameResultEntity } from '../../entities/game-result.entity';
 import { GameSubTypeEntity } from '../../entities/game-sub-type.entity';
@@ -16,6 +17,9 @@ import {
   GameResultSummaryDto,
   ResultWinnerDto,
 } from './dto/game-result-response.dto';
+import { UpdateResultDto } from './dto/update-result.dto';
+
+const RESULT_EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class GameResultService {
@@ -88,6 +92,87 @@ export class GameResultService {
 
       return this.toResponse(result);
     });
+  }
+
+  /**
+   * Superadmin-only correction, allowed within 24 hours of the original
+   * declaration. Reverses the previous winners' payouts (wallet balance is
+   * decremented without the usual insufficient-balance guard, since a
+   * winner may have already spent/withdrawn it — this is a correction, not
+   * a user-initiated spend) and soft-deletes their credit transactions so
+   * they drop out of transaction history/summaries. Bet-to-result linkage
+   * is untouched: the same settled bets are simply re-scored against the
+   * new winning number.
+   */
+  async updateResult(
+    admin: CurrentUserPayload,
+    resultId: string,
+    dto: UpdateResultDto,
+  ): Promise<GameResultResponseDto> {
+    return this.dataSource.transaction(async (manager) => {
+      const resultRepo = manager.getRepository(GameResultEntity);
+      const result = await resultRepo.findOne({ where: { id: resultId } });
+      if (!result) {
+        throw new NotFoundException('Result not found');
+      }
+
+      if (Date.now() - result.createdDate.getTime() > RESULT_EDIT_WINDOW_MS) {
+        throw new BadRequestException(
+          'Results can only be changed within 24 hours of declaration',
+        );
+      }
+      if (dto.winningNumber === result.winningNumber) {
+        throw new BadRequestException(
+          'New winning number must differ from the current one',
+        );
+      }
+
+      await this.reversePreviousWinners(result, admin.email, manager);
+
+      result.winningNumber = dto.winningNumber;
+      const winners = await this.getWinners(result, manager);
+      result.winners = winners;
+      result.updatedBy = admin.email;
+      await resultRepo.save(result);
+
+      for (const winner of winners) {
+        if (winner.winningAmount <= 0) {
+          continue;
+        }
+        await this.walletService.credit(
+          winner.userId,
+          winner.winningAmount,
+          CreditTransactionType.CREDIT,
+          result.id,
+          admin.email,
+          manager,
+        );
+      }
+
+      return this.toResponse(result);
+    });
+  }
+
+  private async reversePreviousWinners(
+    result: GameResultEntity,
+    performedBy: string,
+    manager: EntityManager,
+  ): Promise<void> {
+    const txRepo = manager.getRepository(CreditTransactionEntity);
+    const previousCredits = await txRepo.find({
+      where: {
+        referenceId: result.id,
+        type: CreditTransactionType.CREDIT,
+        isDeleted: false,
+      },
+    });
+
+    for (const tx of previousCredits) {
+      await this.walletService.reverseCredit(tx.userId, tx.amount, performedBy, manager);
+      tx.isDeleted = true;
+      tx.updatedBy = performedBy;
+      await txRepo.save(tx);
+    }
   }
 
   async listResults(pagination: PaginationQueryDto) {

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { RoleName } from '../../common/enums/role.enum';
@@ -8,6 +8,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { DeclareResultDto } from './dto/declare-result.dto';
+import { UpdateResultDto } from './dto/update-result.dto';
 import { GameResultService } from './game-result.service';
 
 @ApiTags('Game Results')
@@ -25,6 +26,17 @@ export class GameResultController {
     @Body() dto: DeclareResultDto,
   ) {
     return this.gameResultService.declareResult(admin, dto);
+  }
+
+  @Patch(':id')
+  @UseGuards(RolesGuard)
+  @Roles(RoleName.SUPER_ADMIN)
+  updateResult(
+    @CurrentUser() admin: CurrentUserPayload,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateResultDto,
+  ) {
+    return this.gameResultService.updateResult(admin, id, dto);
   }
 
   @Get()

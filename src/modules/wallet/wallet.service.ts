@@ -137,6 +137,25 @@ export class WalletService {
   }
 
   /**
+   * Reverses a previously granted credit (e.g. a winning payout for a result
+   * that's being corrected). Unlike debit(), this does not guard against
+   * insufficient balance — the payout may have already been spent or
+   * withdrawn, and this is an admin correction rather than a user-initiated
+   * spend, so the balance is allowed to go negative. Must run inside the
+   * caller's own transaction.
+   */
+  async reverseCredit(
+    userId: string,
+    amount: number,
+    performedBy: string,
+    manager: EntityManager,
+  ): Promise<void> {
+    const walletRepo = manager.getRepository(WalletEntity);
+    await walletRepo.decrement({ userId }, 'balance', amount);
+    await walletRepo.update({ userId }, { updatedBy: performedBy });
+  }
+
+  /**
    * Generic wallet credit used for winnings and approved refunds. Must run
    * inside the caller's own transaction (declareResult / refund approval)
    * so the credit and the state change that authorized it commit together.
@@ -268,6 +287,7 @@ export class WalletService {
       .select('tx."Type"', 'type')
       .addSelect('SUM(tx."Amount")', 'total')
       .where('tx."UserId" IN (:...userIds)', { userIds })
+      .andWhere('tx."IsDeleted" = false')
       .groupBy('tx."Type"');
 
     if (query.type) {
@@ -305,7 +325,10 @@ export class WalletService {
       return { items: [], total: 0, page, limit };
     }
 
-    const where: FindOptionsWhere<CreditTransactionEntity> = { userId: In(userIds) };
+    const where: FindOptionsWhere<CreditTransactionEntity> = {
+      userId: In(userIds),
+      isDeleted: false,
+    };
     if (type) {
       where.type = type;
     }
