@@ -9,10 +9,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { CurrentUserPayload } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ListBetsQueryDto } from './dto/list-bets-query.dto';
 import { PlaceBetDto } from './dto/place-bet.dto';
 import { GameService } from './game.service';
 
@@ -36,10 +36,10 @@ export class GameController {
   })
   listBets(
     @CurrentUser() user: CurrentUserPayload,
-    @Query() pagination: PaginationQueryDto,
+    @Query() query: ListBetsQueryDto,
     @Query('userId') userId?: string,
   ) {
-    return this.gameService.listBets(user, pagination, userId);
+    return this.gameService.listBets(user, query, userId);
   }
 
   @Get(':id')

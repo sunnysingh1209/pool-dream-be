@@ -1,6 +1,5 @@
 import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { RoleName } from '../../common/enums/role.enum';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { CurrentUserPayload } from '../auth/decorators/current-user.decorator';
@@ -8,6 +7,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { CreateWithdrawRequestDto } from './dto/create-withdraw-request.dto';
+import { ListWithdrawRequestsQueryDto } from './dto/list-withdraw-requests-query.dto';
 import { WithdrawRequestService } from './withdraw-request.service';
 
 @ApiTags('Withdraw Requests')
@@ -29,9 +29,9 @@ export class WithdrawRequestController {
   @Get()
   @ApiQuery({ name: 'userId', required: false })
   listAll(
-    @Query() pagination: PaginationQueryDto,
+    @Query() query: ListWithdrawRequestsQueryDto,
     @Query('userId') userId?: string,
   ) {
-    return this.withdrawRequestService.listAll(pagination, userId);
+    return this.withdrawRequestService.listAll(query, userId);
   }
 }

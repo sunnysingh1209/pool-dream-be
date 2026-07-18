@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
-import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
+import { DataSource, FindOptionsWhere, ILike, In, Repository } from 'typeorm';
 import { CreditTransactionType } from '../../common/enums/credit-transaction-type.enum';
+import { buildDateRangeFilter } from '../../common/utils/date-range.util';
 import { UserIdentityEntity } from '../../entities/user-identity.entity';
 import { WithdrawRequestEntity } from '../../entities/withdraw-request.entity';
 import { CreateWithdrawRequestDto } from './dto/create-withdraw-request.dto';
+import { ListWithdrawRequestsQueryDto } from './dto/list-withdraw-requests-query.dto';
 import { WalletService } from './wallet.service';
 
 @Injectable()
@@ -53,18 +54,46 @@ export class WithdrawRequestService {
     });
   }
 
-  async listAll(pagination: PaginationQueryDto, userId?: string) {
+  async listAll(query: ListWithdrawRequestsQueryDto, userId?: string) {
+    const { page, limit, search, fromDate, toDate } = query;
+
+    const where: FindOptionsWhere<WithdrawRequestEntity> = {};
+    if (userId) {
+      where.userId = userId;
+    }
+
+    if (search) {
+      const userIdFilter: FindOptionsWhere<UserIdentityEntity> = userId ? { id: userId } : {};
+      const matches = await this.userRepository.find({
+        where: [
+          { ...userIdFilter, name: ILike(`%${search}%`) },
+          { ...userIdFilter, email: ILike(`%${search}%`) },
+        ],
+        select: ['id'],
+      });
+      const searchedUserIds = matches.map((user) => user.id);
+      if (searchedUserIds.length === 0) {
+        return { items: [], total: 0, page, limit };
+      }
+      where.userId = In(searchedUserIds);
+    }
+
+    const dateFilter = buildDateRangeFilter(fromDate, toDate);
+    if (dateFilter) {
+      where.createdDate = dateFilter;
+    }
+
     const [items, total] = await this.withdrawRequestRepository.findAndCount({
-      where: userId ? { userId } : {},
+      where,
       order: { createdDate: 'DESC' },
-      skip: (pagination.page - 1) * pagination.limit,
-      take: pagination.limit,
+      skip: (page - 1) * limit,
+      take: limit,
     });
     return {
       items: await this.enrichWithUser(items),
       total,
-      page: pagination.page,
-      limit: pagination.limit,
+      page,
+      limit,
     };
   }
 

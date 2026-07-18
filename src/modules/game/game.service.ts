@@ -5,8 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
-import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
+import { DataSource, FindOptionsWhere, ILike, In, Repository } from 'typeorm';
 import { AnderBaharPosition } from '../../common/enums/ander-bahar-position.enum';
 import { GameSubType } from '../../common/enums/game-sub-type.enum';
 import { RoleName } from '../../common/enums/role.enum';
@@ -14,6 +13,7 @@ import {
   ANDER_BAHAR_GROUP_SIZE,
   getAnderBaharNumbers,
 } from '../../common/utils/ander-bahar.util';
+import { buildDateRangeFilter } from '../../common/utils/date-range.util';
 import { GameBetNumberEntity } from '../../entities/game-bet-number.entity';
 import { GameBetEntity } from '../../entities/game-bet.entity';
 import { GameResultEntity } from '../../entities/game-result.entity';
@@ -22,6 +22,7 @@ import { UserIdentityEntity } from '../../entities/user-identity.entity';
 import { CurrentUserPayload } from '../auth/decorators/current-user.decorator';
 import { WalletService } from '../wallet/wallet.service';
 import { BetResponseDto } from './dto/bet-response.dto';
+import { ListBetsQueryDto } from './dto/list-bets-query.dto';
 import { PlaceBetDto } from './dto/place-bet.dto';
 import { GameSubTypeService } from './game-sub-type.service';
 
@@ -178,17 +179,49 @@ export class GameService {
 
   async listBets(
     currentUser: CurrentUserPayload,
-    pagination: PaginationQueryDto,
+    query: ListBetsQueryDto,
     filterUserId?: string,
   ) {
+    const { page, limit, search, gameSubType, fromDate, toDate } = query;
     const isSuperAdmin = currentUser.roles.includes(RoleName.SUPER_ADMIN);
     const targetUserId = isSuperAdmin ? filterUserId : currentUser.id;
 
+    const where: FindOptionsWhere<GameBetEntity> = {};
+    if (targetUserId) {
+      where.userId = targetUserId;
+    }
+    if (gameSubType) {
+      where.gameSubType = gameSubType;
+    }
+
+    if (isSuperAdmin && search) {
+      const userIdFilter: FindOptionsWhere<UserIdentityEntity> = targetUserId
+        ? { id: targetUserId }
+        : {};
+      const matches = await this.userRepository.find({
+        where: [
+          { ...userIdFilter, name: ILike(`%${search}%`) },
+          { ...userIdFilter, email: ILike(`%${search}%`) },
+        ],
+        select: ['id'],
+      });
+      const searchedUserIds = matches.map((user) => user.id);
+      if (searchedUserIds.length === 0) {
+        return { items: [], total: 0, page, limit };
+      }
+      where.userId = In(searchedUserIds);
+    }
+
+    const dateFilter = buildDateRangeFilter(fromDate, toDate);
+    if (dateFilter) {
+      where.createdDate = dateFilter;
+    }
+
     const [bets, total] = await this.gameBetRepository.findAndCount({
-      where: targetUserId ? { userId: targetUserId } : {},
+      where,
       order: { createdDate: 'DESC' },
-      skip: (pagination.page - 1) * pagination.limit,
-      take: pagination.limit,
+      skip: (page - 1) * limit,
+      take: limit,
     });
 
     const betIds = bets.map((bet) => bet.id);
@@ -225,8 +258,8 @@ export class GameService {
           : undefined,
       })),
       total,
-      page: pagination.page,
-      limit: pagination.limit,
+      page,
+      limit,
     };
   }
 

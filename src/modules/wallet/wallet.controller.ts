@@ -10,13 +10,13 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { RoleName } from '../../common/enums/role.enum';
-import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { CurrentUserPayload } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { TopUpCreditDto } from './dto/top-up-credit.dto';
+import { TransactionsQueryDto } from './dto/transactions-query.dto';
 import { UpdateCreditReferenceDto } from './dto/update-credit-reference.dto';
 import { WalletService } from './wallet.service';
 
@@ -36,9 +36,17 @@ export class WalletController {
   @Get('me/transactions')
   getMyTransactions(
     @CurrentUser() user: CurrentUserPayload,
-    @Query() pagination: PaginationQueryDto,
+    @Query() query: TransactionsQueryDto,
   ) {
-    return this.walletService.getTransactions(user.id, pagination);
+    return this.walletService.getTransactions(user.id, query);
+  }
+
+  @Get('me/transactions/summary')
+  getMyTransactionsSummary(
+    @CurrentUser() user: CurrentUserPayload,
+    @Query() query: TransactionsQueryDto,
+  ) {
+    return this.walletService.getTransactionsSummary([user.id], query);
   }
 
   @Post('topup')
@@ -88,9 +96,18 @@ export class WalletController {
   @Roles(RoleName.SUPER_ADMIN, RoleName.ADMIN)
   getAllTransactions(
     @CurrentUser() actor: CurrentUserPayload,
-    @Query() pagination: PaginationQueryDto,
+    @Query() query: TransactionsQueryDto,
   ) {
-    return this.walletService.getTransactionsForActor(actor, pagination);
+    return this.walletService.getTransactionsForActor(actor, query);
+  }
+
+  @Get('transactions/summary')
+  @UseGuards(RolesGuard)
+  getAllTransactionsSummary(
+    @CurrentUser() actor: CurrentUserPayload,
+    @Query() query: TransactionsQueryDto,
+  ) {
+    return this.walletService.getTransactionsSummaryForActor(actor, query);
   }
 
   @Get(':userId/transactions')
@@ -99,9 +116,20 @@ export class WalletController {
   getUserTransactions(
     @CurrentUser() actor: CurrentUserPayload,
     @Param('userId', ParseUUIDPipe) userId: string,
-    @Query() pagination: PaginationQueryDto,
+    @Query() query: TransactionsQueryDto,
   ) {
-    return this.walletService.getTransactionsForActor(actor, pagination, userId);
+    return this.walletService.getTransactionsForActor(actor, query, userId);
+  }
+
+  @Get(':userId/transactions/summary')
+  @UseGuards(RolesGuard)
+  @Roles(RoleName.SUPER_ADMIN, RoleName.ADMIN)
+  getUserTransactionsSummary(
+    @CurrentUser() actor: CurrentUserPayload,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Query() query: TransactionsQueryDto,
+  ) {
+    return this.walletService.getTransactionsSummaryForActor(actor, query, userId);
   }
 
   @Get()

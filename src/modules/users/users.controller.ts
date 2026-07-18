@@ -10,7 +10,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { RoleName } from '../../common/enums/role.enum';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { CurrentUserPayload } from '../auth/decorators/current-user.decorator';
@@ -18,6 +17,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { CreateUserDto } from './dto/create-user.dto';
+import { ListUsersQueryDto } from './dto/list-users-query.dto';
 import { ResetUserPasswordDto } from './dto/reset-password.dto';
 import { UsersService } from './users.service';
 
@@ -32,9 +32,9 @@ export class UsersController {
   @Get()
   listUsers(
     @CurrentUser() actor: CurrentUserPayload,
-    @Query() pagination: PaginationQueryDto,
+    @Query() query: ListUsersQueryDto,
   ) {
-    return this.usersService.listUsers(pagination, actor.id);
+    return this.usersService.listUsers(query, actor.id);
   }
 
   @Post()

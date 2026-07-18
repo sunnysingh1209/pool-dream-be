@@ -1,13 +1,13 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Not, Repository } from 'typeorm';
-import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
+import { FindOptionsWhere, ILike, Not, Repository } from 'typeorm';
 import { UserIdentityEntity } from '../../entities/user-identity.entity';
 import { WalletEntity } from '../../entities/wallet.entity';
 import { PasswordHashService } from '../../infrastructure/common/password.service';
 import { RoleService } from '../role/role.service';
 import { WalletService } from '../wallet/wallet.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { ListUsersQueryDto } from './dto/list-users-query.dto';
 import { ResetUserPasswordDto } from './dto/reset-password.dto';
 import { UserListItemDto } from './dto/user-list-item.dto';
 
@@ -20,12 +20,20 @@ export class UsersService {
     private readonly walletService: WalletService,
   ) {}
 
-  async listUsers(pagination: PaginationQueryDto, excludeUserId: string) {
+  async listUsers(query: ListUsersQueryDto, excludeUserId: string) {
+    const { page, limit, search } = query;
+    const where: FindOptionsWhere<UserIdentityEntity>[] = search
+      ? [
+          { id: Not(excludeUserId), name: ILike(`%${search}%`) },
+          { id: Not(excludeUserId), email: ILike(`%${search}%`) },
+        ]
+      : [{ id: Not(excludeUserId) }];
+
     const [users, total] = await this.userRepository.findAndCount({
-      where: { id: Not(excludeUserId) },
+      where,
       order: { createdDate: 'DESC' },
-      skip: (pagination.page - 1) * pagination.limit,
-      take: pagination.limit,
+      skip: (page - 1) * limit,
+      take: limit,
     });
 
     const userIds = users.map((user) => user.id);
@@ -39,8 +47,8 @@ export class UsersService {
         this.toListItem(user, roleMap.get(user.id) ?? [], walletMap.get(user.id)),
       ),
       total,
-      page: pagination.page,
-      limit: pagination.limit,
+      page,
+      limit,
     };
   }
 

@@ -4,15 +4,16 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, FindOptionsWhere, In, Repository } from 'typeorm';
-import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
+import { DataSource, EntityManager, FindOptionsWhere, ILike, In, Repository } from 'typeorm';
 import { CreditTransactionType } from '../../common/enums/credit-transaction-type.enum';
 import { RoleName } from '../../common/enums/role.enum';
+import { buildDateRangeFilter } from '../../common/utils/date-range.util';
 import { CreditTransactionEntity } from '../../entities/credit-transaction.entity';
 import { UserIdentityEntity } from '../../entities/user-identity.entity';
 import { WalletEntity } from '../../entities/wallet.entity';
 import type { CurrentUserPayload } from '../auth/decorators/current-user.decorator';
 import { RoleService } from '../role/role.service';
+import { TransactionsQueryDto } from './dto/transactions-query.dto';
 
 @Injectable()
 export class WalletService {
@@ -207,19 +208,8 @@ export class WalletService {
     return newBalance;
   }
 
-  async getTransactions(userId: string, pagination: PaginationQueryDto) {
-    const [items, total] = await this.creditTransactionRepository.findAndCount({
-      where: { userId },
-      order: { createdDate: 'DESC' },
-      skip: (pagination.page - 1) * pagination.limit,
-      take: pagination.limit,
-    });
-    return {
-      items: await this.enrichTransactionsWithUser(items),
-      total,
-      page: pagination.page,
-      limit: pagination.limit,
-    };
+  async getTransactions(userId: string, query: TransactionsQueryDto) {
+    return this.queryTransactions([userId], query);
   }
 
   async getWalletForActor(actor: CurrentUserPayload, userId?: string) {
@@ -243,34 +233,143 @@ export class WalletService {
 
   async getTransactionsForActor(
     actor: CurrentUserPayload,
-    pagination: PaginationQueryDto,
+    query: TransactionsQueryDto,
     userId?: string,
   ) {
-    if (userId) {
-      await this.assertCanAccessUser(actor, userId);
-      return this.getTransactions(userId, pagination);
+    const userIds = await this.resolveAccessibleUserIds(actor, userId);
+    return this.queryTransactions(userIds, query);
+  }
+
+  async getTransactionsSummaryForActor(
+    actor: CurrentUserPayload,
+    query: TransactionsQueryDto,
+    userId?: string,
+  ): Promise<Record<CreditTransactionType, number>> {
+    const userIds = await this.resolveAccessibleUserIds(actor, userId);
+    return this.getTransactionsSummary(userIds, query);
+  }
+
+  async getTransactionsSummary(
+    candidateUserIds: string[],
+    query: TransactionsQueryDto,
+  ): Promise<Record<CreditTransactionType, number>> {
+    const summary = this.emptyTransactionsSummary();
+    if (candidateUserIds.length === 0) {
+      return summary;
     }
 
-    const accessibleUsers = await this.userRepository.find({
-      where: this.buildAccessibleUsersWhere(actor),
-      select: ['id'],
-    });
-    const userIds = accessibleUsers.map((user) => user.id);
+    const userIds = await this.resolveUserIdsForSearch(candidateUserIds, query.search);
     if (userIds.length === 0) {
-      return { items: [], total: 0, page: pagination.page, limit: pagination.limit };
+      return summary;
+    }
+
+    const qb = this.creditTransactionRepository
+      .createQueryBuilder('tx')
+      .select('tx."Type"', 'type')
+      .addSelect('SUM(tx."Amount")', 'total')
+      .where('tx."UserId" IN (:...userIds)', { userIds })
+      .groupBy('tx."Type"');
+
+    if (query.type) {
+      qb.andWhere('tx."Type" = :type', { type: query.type });
+    }
+    if (query.fromDate) {
+      qb.andWhere('tx."CreatedDate" >= :fromDate', {
+        fromDate: new Date(`${query.fromDate}T00:00:00.000Z`),
+      });
+    }
+    if (query.toDate) {
+      qb.andWhere('tx."CreatedDate" <= :toDate', {
+        toDate: new Date(`${query.toDate}T23:59:59.999Z`),
+      });
+    }
+
+    const rows = await qb.getRawMany<{ type: string; total: string }>();
+    for (const row of rows) {
+      summary[row.type as CreditTransactionType] = Number(row.total);
+    }
+    return summary;
+  }
+
+  private async queryTransactions(
+    candidateUserIds: string[],
+    query: TransactionsQueryDto,
+  ) {
+    const { page, limit, search, type, fromDate, toDate } = query;
+    if (candidateUserIds.length === 0) {
+      return { items: [], total: 0, page, limit };
+    }
+
+    const userIds = await this.resolveUserIdsForSearch(candidateUserIds, search);
+    if (userIds.length === 0) {
+      return { items: [], total: 0, page, limit };
+    }
+
+    const where: FindOptionsWhere<CreditTransactionEntity> = { userId: In(userIds) };
+    if (type) {
+      where.type = type;
+    }
+    const dateFilter = buildDateRangeFilter(fromDate, toDate);
+    if (dateFilter) {
+      where.createdDate = dateFilter;
     }
 
     const [items, total] = await this.creditTransactionRepository.findAndCount({
-      where: { userId: In(userIds) },
+      where,
       order: { createdDate: 'DESC' },
-      skip: (pagination.page - 1) * pagination.limit,
-      take: pagination.limit,
+      skip: (page - 1) * limit,
+      take: limit,
     });
     return {
       items: await this.enrichTransactionsWithUser(items),
       total,
-      page: pagination.page,
-      limit: pagination.limit,
+      page,
+      limit,
+    };
+  }
+
+  /**
+   * Narrows candidateUserIds to those whose name/email match the search term.
+   * Returns candidateUserIds unchanged when no search term is given.
+   */
+  private async resolveUserIdsForSearch(
+    candidateUserIds: string[],
+    search?: string,
+  ): Promise<string[]> {
+    if (!search) {
+      return candidateUserIds;
+    }
+    const matches = await this.userRepository.find({
+      where: [
+        { id: In(candidateUserIds), name: ILike(`%${search}%`) },
+        { id: In(candidateUserIds), email: ILike(`%${search}%`) },
+      ],
+      select: ['id'],
+    });
+    return matches.map((user) => user.id);
+  }
+
+  private async resolveAccessibleUserIds(
+    actor: CurrentUserPayload,
+    userId?: string,
+  ): Promise<string[]> {
+    if (userId) {
+      await this.assertCanAccessUser(actor, userId);
+      return [userId];
+    }
+    const accessibleUsers = await this.userRepository.find({
+      where: this.buildAccessibleUsersWhere(actor),
+      select: ['id'],
+    });
+    return accessibleUsers.map((user) => user.id);
+  }
+
+  private emptyTransactionsSummary(): Record<CreditTransactionType, number> {
+    return {
+      [CreditTransactionType.TOPUP]: 0,
+      [CreditTransactionType.CREDIT]: 0,
+      [CreditTransactionType.BET_DEBIT]: 0,
+      [CreditTransactionType.WITHDRAW]: 0,
     };
   }
 
