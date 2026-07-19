@@ -4,6 +4,7 @@ import { FindOptionsWhere, ILike, Not, Repository } from 'typeorm';
 import { UserIdentityEntity } from '../../entities/user-identity.entity';
 import { WalletEntity } from '../../entities/wallet.entity';
 import { PasswordHashService } from '../../infrastructure/common/password.service';
+import { BetAmountPresetService } from '../bet-amount-preset/bet-amount-preset.service';
 import { RoleService } from '../role/role.service';
 import { WalletService } from '../wallet/wallet.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -18,6 +19,7 @@ export class UsersService {
     private readonly userRepository: Repository<UserIdentityEntity>,
     private readonly roleService: RoleService,
     private readonly walletService: WalletService,
+    private readonly betAmountPresetService: BetAmountPresetService,
   ) {}
 
   async listUsers(query: ListUsersQueryDto, excludeUserId: string) {
@@ -77,6 +79,7 @@ export class UsersService {
     const savedUser = await this.userRepository.save(user);
     await this.roleService.assignRole(savedUser.id, dto.role, actorEmail);
     const wallet = await this.walletService.createWalletForUser(savedUser.id, actorEmail);
+    await this.betAmountPresetService.seedDefaultsForUser(savedUser.id, actorEmail);
 
     return this.toListItem(savedUser, [dto.role], wallet);
   }

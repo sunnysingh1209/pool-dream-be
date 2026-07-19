@@ -45,7 +45,7 @@ export class TransformInterceptor<T>
     return next.handle().pipe(
       map((data) => {
         // console.log("SunnyINterceptorRes", data)
-        if (data.value !== undefined) {
+        if (data?.value !== undefined) {
           resultData = data.value;
         } else {
           resultData = data;
@@ -63,7 +63,7 @@ export class TransformInterceptor<T>
           statusCode: statusOverride || status,
           // status: true,
           errors: [],
-          message: data.message ? data.message : 'Success',
+          message: data?.message ? data.message : 'Success',
           data: resultData ? resultData : {},
         };
         return objRes;

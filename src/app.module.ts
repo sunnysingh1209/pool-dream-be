@@ -6,6 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { PostgresConfigModule } from './common/configuration/db/config.module';
 import { TypeOrmPostgresConnectionService } from './common/configuration/db/config.service';
 import { AuthModule } from './modules/auth/auth.module';
+import { BetAmountPresetModule } from './modules/bet-amount-preset/bet-amount-preset.module';
 import { GameModule } from './modules/game/game.module';
 import { UsersModule } from './modules/users/users.module';
 import { WalletModule } from './modules/wallet/wallet.module';
@@ -26,6 +27,7 @@ import { WalletModule } from './modules/wallet/wallet.module';
     WalletModule,
     GameModule,
     UsersModule,
+    BetAmountPresetModule,
   ],
   controllers: [AppController],
   providers: [AppService],
