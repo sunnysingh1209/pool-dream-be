@@ -46,8 +46,20 @@ async function bootstrap() {
     new ConditionalTransformInterceptor(reflector),
   );
   app.setGlobalPrefix('api/v1');
-  SwaggerModule.setup('api', app, createDocument(app));
+
+  const logger = new Logger('Bootstrap');
+  // Swagger publicly documents (and lets anyone construct requests against)
+  // every endpoint. Keep it out of production by default; ENABLE_SWAGGER=true
+  // opts back in for staging environments that happen to run NODE_ENV=production.
+  const swaggerEnabled =
+    process.env.NODE_ENV !== 'production' || process.env.ENABLE_SWAGGER === 'true';
+  if (swaggerEnabled) {
+    SwaggerModule.setup('api', app, createDocument(app));
+  } else {
+    logger.log('Swagger docs disabled (production). Set ENABLE_SWAGGER=true to override.');
+  }
+
   await app.listen(process?.env?.PORT || 8080);
-  new Logger('Bootstrap').log(`🚀 Server started at ${await app.getUrl()}`);
+  logger.log(`🚀 Server started at ${await app.getUrl()}`);
 }
 bootstrap();
