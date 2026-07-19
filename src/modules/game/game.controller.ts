@@ -8,7 +8,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { CurrentUserPayload } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -29,17 +29,11 @@ export class GameController {
   }
 
   @Get()
-  @ApiQuery({
-    name: 'userId',
-    required: false,
-    description: 'Superadmin-only filter; ignored for other roles.',
-  })
   listBets(
     @CurrentUser() user: CurrentUserPayload,
     @Query() query: ListBetsQueryDto,
-    @Query('userId') userId?: string,
   ) {
-    return this.gameService.listBets(user, query, userId);
+    return this.gameService.listBets(user, query, query.userId);
   }
 
   @Get(':id')

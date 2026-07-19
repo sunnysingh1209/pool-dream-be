@@ -1,8 +1,13 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsDateString, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto';
 
 export class ListWithdrawRequestsQueryDto extends PaginationQueryDto {
+  @ApiPropertyOptional({ description: 'Filter by user id' })
+  @IsOptional()
+  @IsUUID()
+  userId?: string;
+
   @ApiPropertyOptional({ description: 'Search by user name or email (partial match), minimum 4 characters' })
   @IsOptional()
   @IsString()

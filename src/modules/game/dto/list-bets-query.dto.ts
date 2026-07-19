@@ -1,9 +1,14 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsDateString, IsEnum, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto';
 import { GameSubType } from '../../../common/enums/game-sub-type.enum';
 
 export class ListBetsQueryDto extends PaginationQueryDto {
+  @ApiPropertyOptional({ description: 'Superadmin-only filter; ignored for other roles.' })
+  @IsOptional()
+  @IsUUID()
+  userId?: string;
+
   @ApiPropertyOptional({
     description:
       'Search by user name or email (partial match), minimum 4 characters. Superadmin-only; ignored for other roles.',

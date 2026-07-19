@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8080/api/v1/does-not-exist)",
+      "Bash(pkill -f \"node dist/main\")",
+      "Bash(netstat -ano)",
+      "Bash(powershell -Command \"Stop-Process -Id 22352 -Force\")",
+      "Bash(npm run *)",
+      "Bash(pkill -f \"nest start\" 2>/dev/null; rm -f /tmp/server*.log; rm -rf logs; echo done)"
+    ],
+    "additionalDirectories": [
+      "\\tmp"
+    ]
+  }
+}

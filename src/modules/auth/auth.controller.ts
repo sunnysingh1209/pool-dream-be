@@ -1,5 +1,6 @@
 import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import type { CurrentUserPayload } from './decorators/current-user.decorator';
@@ -17,18 +18,21 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('sign-up')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.CREATED)
   signUp(@Body() dto: SignUpDto): Promise<AuthResponseDto> {
     return this.authService.signUp(dto);
   }
 
   @Post('sign-in')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   signIn(@Body() dto: SignInDto): Promise<AuthResponseDto> {
     return this.authService.signIn(dto);
   }
 
   @Post('refresh-token')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   refreshToken(@Body() dto: RefreshTokenDto): Promise<AuthResponseDto> {
     return this.authService.refreshToken(dto);

@@ -1,11 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmOptionsFactory, TypeOrmModuleOptions } from '@nestjs/typeorm';
 
 @Injectable()
 export class TypeOrmPostgresConnectionService implements TypeOrmOptionsFactory {
+  private readonly logger = new Logger(TypeOrmPostgresConnectionService.name);
+
   constructor(private readonly configService: ConfigService) {
-    console.log('DATABASE_HOST', process.env.DATABASE_HOST);
+    this.logger.log(`DATABASE_HOST=${process.env.DATABASE_HOST}`);
   }
 
   createTypeOrmOptions(

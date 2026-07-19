@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { RoleName } from '../../common/enums/role.enum';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { CurrentUserPayload } from '../auth/decorators/current-user.decorator';
@@ -27,11 +27,7 @@ export class WithdrawRequestController {
   }
 
   @Get()
-  @ApiQuery({ name: 'userId', required: false })
-  listAll(
-    @Query() query: ListWithdrawRequestsQueryDto,
-    @Query('userId') userId?: string,
-  ) {
-    return this.withdrawRequestService.listAll(query, userId);
+  listAll(@Query() query: ListWithdrawRequestsQueryDto) {
+    return this.withdrawRequestService.listAll(query, query.userId);
   }
 }
