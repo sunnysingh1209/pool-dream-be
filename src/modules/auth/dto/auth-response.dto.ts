@@ -24,7 +24,10 @@ export class AuthResponseDto {
   @ApiProperty()
   accessToken: string = "";
 
-  @ApiProperty()
+  @ApiProperty({
+    description:
+      'Also set as an httpOnly cookie. Browser clients should rely on the cookie and avoid persisting this value themselves (e.g. localStorage) to limit XSS exposure; kept in the body for non-browser clients.',
+  })
   refreshToken: string = "";
 
   @ApiProperty({ description: 'True if this is the user\'s first ever login' })

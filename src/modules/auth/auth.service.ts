@@ -17,7 +17,6 @@ import { RoleService } from '../role/role.service';
 import { WalletService } from '../wallet/wallet.service';
 import { AuthResponseDto, AuthUserDto } from './dto/auth-response.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SignInDto } from './dto/sign-in.dto';
 import { SignUpDto } from './dto/sign-up.dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
@@ -89,8 +88,8 @@ export class AuthService {
     return this.buildAuthResponse(user, isFirstLogin);
   }
 
-  async refreshToken(dto: RefreshTokenDto): Promise<AuthResponseDto> {
-    const tokenHash = TokenHashService.hash(dto.refreshToken);
+  async refreshToken(refreshToken: string): Promise<AuthResponseDto> {
+    const tokenHash = TokenHashService.hash(refreshToken);
     const storedToken = await this.refreshTokenRepository.findOne({
       where: { tokenHash },
     });
@@ -134,8 +133,8 @@ export class AuthService {
     return { message: 'Password updated successfully' };
   }
 
-  async logout(dto: RefreshTokenDto): Promise<{ message: string }> {
-    const tokenHash = TokenHashService.hash(dto.refreshToken);
+  async logout(refreshToken: string): Promise<{ message: string }> {
+    const tokenHash = TokenHashService.hash(refreshToken);
     const storedToken = await this.refreshTokenRepository.findOne({
       where: { tokenHash },
     });

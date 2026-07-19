@@ -6,7 +6,13 @@
       "Bash(netstat -ano)",
       "Bash(powershell -Command \"Stop-Process -Id 22352 -Force\")",
       "Bash(npm run *)",
-      "Bash(pkill -f \"nest start\" 2>/dev/null; rm -f /tmp/server*.log; rm -rf logs; echo done)"
+      "Bash(pkill -f \"nest start\" 2>/dev/null; rm -f /tmp/server*.log; rm -rf logs; echo done)",
+      "Bash(curl -sD - -c /tmp/cookies.txt -X POST http://localhost:8080/api/v1/auth/sign-in -H 'Content-Type: application/json' -d '{\"email\":\"varun@example.com\",\"password\":\"StrongP@ssw0rd\"}')",
+      "Bash(curl -sD - -b /tmp/cookies.txt -c /tmp/cookies.txt -X POST http://localhost:8080/api/v1/auth/refresh-token -H 'Content-Type: application/json' -d '{}')",
+      "Bash(curl -sD - -b /tmp/cookies.txt -c /tmp/cookies.txt -X POST http://localhost:8080/api/v1/auth/logout -H 'Content-Type: application/json' -d '{}')",
+      "Bash(curl -s -o /dev/null -w '%{http_code}\\\\n' -X POST http://localhost:8080/api/v1/auth/refresh-token -H 'Content-Type: application/json' -d '{}')",
+      "Bash(node -e \"const ds = require\\('./dist/common/configuration/typeorm.js'\\); console.log\\(typeof ds.default\\)\")",
+      "Bash(docker build *)"
     ],
     "additionalDirectories": [
       "\\tmp"

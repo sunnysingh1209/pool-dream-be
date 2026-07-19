@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: pool-dream-be
+    runtime: docker
+    plan: starter
+    region: singapore
+    healthCheckPath: /api/v1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 8080
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 15m
+      - key: REFRESH_TOKEN_EXPIRES_IN_DAYS
+        value: "10"
+      # Set to your Vercel deployment URL(s), comma-separated if more than one
+      # (e.g. production + preview). Required for cookie-based auth to work.
+      - key: FRONTEND_URL
+        sync: false
+      - key: DATABASE_HOST
+        fromDatabase:
+          name: pool-dream-db
+          property: host
+      - key: DATABASE_PORT
+        fromDatabase:
+          name: pool-dream-db
+          property: port
+      - key: DATABASE_USERNAME
+        fromDatabase:
+          name: pool-dream-db
+          property: user
+      - key: DATABASE_PASSWORD
+        fromDatabase:
+          name: pool-dream-db
+          property: password
+      - key: DATABASE_NAME
+        fromDatabase:
+          name: pool-dream-db
+          property: database
+
+databases:
+  - name: pool-dream-db
+    plan: starter
+    region: singapore

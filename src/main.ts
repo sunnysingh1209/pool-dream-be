@@ -1,6 +1,7 @@
 import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { Logger, ValidationPipe } from '@nestjs/common';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { WinstonModule } from 'nest-winston';
 import { winstonLoggerOptions } from './common/logger/winston.config';
@@ -10,11 +11,19 @@ import { ConditionalTransformInterceptor } from './common/interceptor/Conditiona
 import { SwaggerModule } from '@nestjs/swagger';
 import { createDocument } from './common/swagger/swagger';
 
+// Comma-separated list, e.g. "https://app.example.com,https://staging.example.com".
+// Falls back to reflecting any origin (no credentials) when unset, so local
+// dev keeps working without extra setup.
+const allowedOrigins = process.env.FRONTEND_URL?.split(',').map((o) => o.trim());
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
-    cors: true,
+    cors: allowedOrigins
+      ? { origin: allowedOrigins, credentials: true }
+      : { origin: true, credentials: true },
     logger: WinstonModule.createLogger(winstonLoggerOptions),
   });
+  app.use(cookieParser());
   app.use(
     helmet({
       // Swagger UI (served at /api) needs inline scripts/styles; a strict
